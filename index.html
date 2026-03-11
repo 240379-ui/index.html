@@ -21,20 +21,21 @@
         <button type="submit">Отправить в облако</button>
     </form>
 </div>
+
 <script type="module">
   // Импортируем модули Firebase
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
   import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-  // ТВОИ КЛЮЧИ СО СКРИНШОТА
+  // ТВОИ КЛЮЧИ
   const firebaseConfig = {
-  apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
-  authDomain: "database-375f4.firebaseapp.com",
-  projectId: "database-375f4",
-  storageBucket: "database-375f4.firebasestorage.app",
-  messagingSenderId: "155181454067",
-  appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86",
-  measurementId: "G-TB3G4KSQ8S"
+    apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
+    authDomain: "database-375f4.firebaseapp.com",
+    projectId: "database-375f4",
+    storageBucket: "database-375f4.firebasestorage.app",
+    messagingSenderId: "155181454067",
+    appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86",
+    measurementId: "G-TB3G4KSQ8S"
   };
 
   // Инициализация
@@ -42,7 +43,9 @@
   const db = getFirestore(app);
 
   // Логика кнопки
-  document.getElementById("feedbackForm").addEventListener("submit", async (e) => {
+  const form = document.getElementById("feedbackForm");
+  
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const nameInput = document.getElementById("userName").value;
@@ -53,12 +56,18 @@
       await addDoc(collection(db, "requests"), {
         name: nameInput,
         email: emailInput,
+        date: new Date().toISOString()
       });
-      // Здесь код обрывается, но обычно следует уведомление об успехе
-    } catch (e) {
-      console.error("Ошибка при добавлении документа: ", e);
+      
+      alert("Заявка успешно отправлена!");
+      form.reset(); // Очищаем поля формы после успеха
+
+    } catch (error) {
+      console.error("Ошибка при добавлении документа: ", error);
+      alert("Ошибка отправки! Проверь настройки доступа (Rules) в Firebase.");
     }
   });
 </script>
+
 </body>
 </html>
