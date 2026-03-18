@@ -1,12 +1,29 @@
-<div id="database-viewer" style="margin-top: 20px; border: 1px solid #ccc; padding: 15px;">
-    <h3>Содержимое базы данных:</h3>
-    <div id="data-container">Загрузка данных...</div>
-    <button onclick="refreshData()" style="margin-top: 10px;">Обновить вручную</button>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Firebase Viewer - Requests</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .request-card { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; background: #fafafa; }
+        .request-id { font-size: 0.8em; color: #888; }
+        .field { margin: 5px 0; }
+        button { background: #f57c00; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #e64a19; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Данные из коллекции: requests</h2>
+    <button id="loadBtn">Обновить данные</button>
+    <div id="output" style="margin-top: 20px;">Нажмите кнопку для загрузки...</div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
@@ -20,49 +37,46 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Основная функция получения данных
-    async function fetchExistingData() {
-        const container = document.getElementById('data-container');
-        
+    // ФУНКЦИЯ ПОЛУЧЕНИЯ ДАННЫХ
+    async function getRequests() {
+        const output = document.getElementById('output');
+        output.innerHTML = "Загрузка...";
+
         try {
-            // 1. Ссылка на коллекцию (убедитесь, что название 'messages' совпадает с тем, куда вы писали данные)
-            const colRef = collection(db, "messages");
-            
-            // 2. Создаем запрос (опционально: сортировка по времени)
-            const q = query(colRef, orderBy("createdAt", "desc"));
-            
-            // 3. Получаем "снимок" всех документов
-            const querySnapshot = await getDocs(q);
-            
+            // Указываем именно вашу коллекцию 'requests'
+            const querySnapshot = await getDocs(collection(db, "requests"));
+            output.innerHTML = "";
+
             if (querySnapshot.empty) {
-                container.innerHTML = "<p>В базе данных пока нет записей.</p>";
+                output.innerHTML = "Коллекция 'requests' пуста.";
                 return;
             }
 
-            // 4. Очищаем контейнер и выводим данные в цикле
-            container.innerHTML = ""; 
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                const date = data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : "Дата не указана";
                 
-                container.innerHTML += `
-                    <div style="background: #f9f9f9; border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 5px;">
-                        <strong>ID документа:</strong> ${doc.id}<br>
-                        <strong>Пользователь:</strong> ${data.user || 'Аноним'}<br>
-                        <strong>Сообщение:</strong> ${data.text || 'Пусто'}<br>
-                        <small style="color: gray;">Время: ${date}</small>
-                    </div>
-                `;
+                // Создаем карточку для каждого документа
+                const card = document.createElement('div');
+                card.className = 'request-card';
+                
+                // Генерируем содержимое на основе полей в документе
+                let fieldsHtml = `<div class="request-id">ID: ${doc.id}</div>`;
+                for (const [key, value] of Object.entries(data)) {
+                    fieldsHtml += `<div class="field"><strong>${key}:</strong> ${JSON.stringify(value)}</div>`;
+                }
+                
+                card.innerHTML = fieldsHtml;
+                output.appendChild(card);
             });
-        } catch (error) {
-            console.error("Ошибка при получении данных:", error);
-            container.innerHTML = "<p style='color: red;'>Ошибка доступа. Проверьте настройки Rules в Firebase Console.</p>";
+        } catch (e) {
+            console.error(e);
+            output.innerHTML = "Ошибка доступа. Проверьте Rules в Firebase Console.";
         }
     }
 
-    // Запускаем при загрузке
-    fetchExistingData();
-
-    // Делаем функцию доступной для кнопки
-    window.refreshData = fetchExistingData;
+    document.getElementById('loadBtn').addEventListener('click', getRequests);
+    // Автозапуск при загрузке
+    getRequests();
 </script>
+</body>
+</html>
