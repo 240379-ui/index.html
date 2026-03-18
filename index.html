@@ -1,94 +1,108 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Firebase Table Modular SDK</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Firestore Dashboard</title>
     <style>
-        table { border-collapse: collapse; width: 80%; margin-top: 20px; }
-        th, td { border: 1px solid black; padding: 8px; text-align: left; }
-        th { background-color: #ddd; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #357abd; }
+        #data-display { margin-top: 20px; }
+        .entry { background: #fff; border-left: 5px solid #4285f4; padding: 10px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h2 { color: #333; text-align: center; }
     </style>
 </head>
 <body>
 
-<h2>Данные из Firebase</h2>
-<button onclick="loadData()">Загрузить данные</button>
+<div class="card">
+    <h2>Работа с базой данных</h2>
+    <input type="text" id="nameInput" placeholder="Введите имя">
+    <input type="text" id="msgInput" placeholder="Введите сообщение">
+    <button id="addBtn">Сохранить в Firebase</button>
 
-<table id="dataTable">
-    <thead>
-        <tr id="tableHead"></tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-</table>
+    <hr>
+
+    <h3>Все записи из базы:</h3>
+    <div id="data-display">Загрузка данных...</div>
+</div>
 
 <script type="module">
-    // 🔹 Импортируем функции из модульного SDK
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+    // Импорт необходимых модулей Firestore
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // 🔹 Конфигурация Firebase (твоя)
+    // Твои данные конфигурации
     const firebaseConfig = {
-      apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
-      authDomain: "database-375f4.firebaseapp.com",
-      projectId: "database-375f4",
-      storageBucket: "database-375f4.firebasestorage.app",
-      messagingSenderId: "155181454067",
-      appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86",
-      measurementId: "G-TB3G4KSQ8S"
+        apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
+        authDomain: "database-375f4.firebaseapp.com",
+        projectId: "database-375f4",
+        storageBucket: "database-375f4.firebasestorage.app",
+        messagingSenderId: "155181454067",
+        appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86",
+        measurementId: "G-TB3G4KSQ8S"
     };
 
-    // 🔹 Инициализация
+    // Инициализация приложения и базы данных
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
     const db = getFirestore(app);
 
-    // 🔹 Функция для загрузки данных и создания таблицы
-    async function loadData() {
-        const tableHead = document.getElementById("tableHead");
-        const tableBody = document.getElementById("tableBody");
+    // --- ФУНКЦИЯ №1: Запись данных ---
+    async function saveData() {
+        const name = document.getElementById('nameInput').value;
+        const message = document.getElementById('msgInput').value;
 
-        tableHead.innerHTML = "";
-        tableBody.innerHTML = "";
+        if (!name || !message) return alert("Заполните поля!");
 
         try {
-            // Берем все документы из коллекции "users"
-            const snapshot = await getDocs(collection(db, "users"));
-
-            if (snapshot.empty) {
-                tableBody.innerHTML = "<tr><td colspan='10'>Нет данных</td></tr>";
-                return;
-            }
-
-            let headersAdded = false;
-
-            snapshot.forEach(doc => {
-                const data = doc.data();
-
-                // Создаем заголовки таблицы один раз
-                if (!headersAdded) {
-                    let headers = "<th>ID</th>";
-                    for (let key in data) {
-                        headers += `<th>${key}</th>`;
-                    }
-                    tableHead.innerHTML = headers;
-                    headersAdded = true;
-                }
-
-                // Создаем строки таблицы
-                let row = `<tr><td>${doc.id}</td>`;
-                for (let key in data) {
-                    row += `<td>${data[key]}</td>`;
-                }
-                row += "</tr>";
-
-                tableBody.innerHTML += row;
+            await addDoc(collection(db, "messages"), {
+                user: name,
+                text: message,
+                createdAt: serverTimestamp() // Добавляем время для сортировки
             });
-
+            
+            // Очистка полей и обновление списка
+            document.getElementById('nameInput').value = '';
+            document.getElementById('msgInput').value = '';
+            loadData(); 
         } catch (error) {
-            tableBody.innerHTML = `<tr><td colspan='10'>Ошибка: ${error}</td></tr>`;
+            console.error("Ошибка при добавлении: ", error);
+        }
+    }
+
+    // --- ФУНКЦИЯ №2: Чтение данных ---
+    async function loadData() {
+        const display = document.getElementById('data-display');
+        
+        try {
+            // Запрашиваем коллекцию, сортируя по времени создания
+            const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
+            const querySnapshot = await getDocs(q);
+            
+            display.innerHTML = ""; // Очищаем старое содержимое
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const item = document.createElement('div');
+                item.className = 'entry';
+                item.innerHTML = `<strong>${data.user}:</strong> ${data.text}`;
+                display.appendChild(item);
+            });
+            
+            if (querySnapshot.empty) display.innerHTML = "В базе пока пусто.";
+        } catch (error) {
+            display.innerHTML = "Ошибка доступа. Проверьте правила (Rules) в Firebase!";
             console.error(error);
         }
     }
+
+    // Привязка клика к кнопке
+    document.getElementById('addBtn').addEventListener('click', saveData);
+
+    // Вызываем чтение при загрузке страницы
+    loadData();
 </script>
 
 </body>
