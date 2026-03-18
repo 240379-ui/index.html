@@ -1,109 +1,68 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Firestore Dashboard</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #357abd; }
-        #data-display { margin-top: 20px; }
-        .entry { background: #fff; border-left: 5px solid #4285f4; padding: 10px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        h2 { color: #333; text-align: center; }
-    </style>
-</head>
-<body>
-
-<div class="card">
-    <h2>Работа с базой данных</h2>
-    <input type="text" id="nameInput" placeholder="Введите имя">
-    <input type="text" id="msgInput" placeholder="Введите сообщение">
-    <button id="addBtn">Сохранить в Firebase</button>
-
-    <hr>
-
-    <h3>Все записи из базы:</h3>
-    <div id="data-display">Загрузка данных...</div>
+<div id="database-viewer" style="margin-top: 20px; border: 1px solid #ccc; padding: 15px;">
+    <h3>Содержимое базы данных:</h3>
+    <div id="data-container">Загрузка данных...</div>
+    <button onclick="refreshData()" style="margin-top: 10px;">Обновить вручную</button>
 </div>
 
 <script type="module">
-    // Импорт необходимых модулей Firestore
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Твои данные конфигурации
     const firebaseConfig = {
         apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
         authDomain: "database-375f4.firebaseapp.com",
         projectId: "database-375f4",
         storageBucket: "database-375f4.firebasestorage.app",
         messagingSenderId: "155181454067",
-        appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86",
-        measurementId: "G-TB3G4KSQ8S"
+        appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86"
     };
 
-    // Инициализация приложения и базы данных
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // --- ФУНКЦИЯ №1: Запись данных ---
-    async function saveData() {
-        const name = document.getElementById('nameInput').value;
-        const message = document.getElementById('msgInput').value;
-
-        if (!name || !message) return alert("Заполните поля!");
-
-        try {
-            await addDoc(collection(db, "messages"), {
-                user: name,
-                text: message,
-                createdAt: serverTimestamp() // Добавляем время для сортировки
-            });
-            
-            // Очистка полей и обновление списка
-            document.getElementById('nameInput').value = '';
-            document.getElementById('msgInput').value = '';
-            loadData(); 
-        } catch (error) {
-            console.error("Ошибка при добавлении: ", error);
-        }
-    }
-
-    // --- ФУНКЦИЯ №2: Чтение данных ---
-    async function loadData() {
-        const display = document.getElementById('data-display');
+    // Основная функция получения данных
+    async function fetchExistingData() {
+        const container = document.getElementById('data-container');
         
         try {
-            // Запрашиваем коллекцию, сортируя по времени создания
-            const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
+            // 1. Ссылка на коллекцию (убедитесь, что название 'messages' совпадает с тем, куда вы писали данные)
+            const colRef = collection(db, "messages");
+            
+            // 2. Создаем запрос (опционально: сортировка по времени)
+            const q = query(colRef, orderBy("createdAt", "desc"));
+            
+            // 3. Получаем "снимок" всех документов
             const querySnapshot = await getDocs(q);
             
-            display.innerHTML = ""; // Очищаем старое содержимое
+            if (querySnapshot.empty) {
+                container.innerHTML = "<p>В базе данных пока нет записей.</p>";
+                return;
+            }
 
+            // 4. Очищаем контейнер и выводим данные в цикле
+            container.innerHTML = ""; 
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                const item = document.createElement('div');
-                item.className = 'entry';
-                item.innerHTML = `<strong>${data.user}:</strong> ${data.text}`;
-                display.appendChild(item);
+                const date = data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : "Дата не указана";
+                
+                container.innerHTML += `
+                    <div style="background: #f9f9f9; border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 5px;">
+                        <strong>ID документа:</strong> ${doc.id}<br>
+                        <strong>Пользователь:</strong> ${data.user || 'Аноним'}<br>
+                        <strong>Сообщение:</strong> ${data.text || 'Пусто'}<br>
+                        <small style="color: gray;">Время: ${date}</small>
+                    </div>
+                `;
             });
-            
-            if (querySnapshot.empty) display.innerHTML = "В базе пока пусто.";
         } catch (error) {
-            display.innerHTML = "Ошибка доступа. Проверьте правила (Rules) в Firebase!";
-            console.error(error);
+            console.error("Ошибка при получении данных:", error);
+            container.innerHTML = "<p style='color: red;'>Ошибка доступа. Проверьте настройки Rules в Firebase Console.</p>";
         }
     }
 
-    // Привязка клика к кнопке
-    document.getElementById('addBtn').addEventListener('click', saveData);
+    // Запускаем при загрузке
+    fetchExistingData();
 
-    // Вызываем чтение при загрузке страницы
-    loadData();
+    // Делаем функцию доступной для кнопки
+    window.refreshData = fetchExistingData;
 </script>
-
-</body>
-</html>
