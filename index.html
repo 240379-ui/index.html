@@ -1,72 +1,264 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<meta charset="UTF-8">
+<title>DM Chat</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #0b141a;
+  color: white;
+  display: flex;
+  height: 100vh;
+}
+
+/* LEFT */
+.sidebar {
+  width: 300px;
+  background: #111b21;
+  display: flex;
+  flex-direction: column;
+}
+
+.search {
+  padding: 10px;
+}
+
+.search input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+}
+
+.users {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.user {
+  padding: 12px;
+  border-bottom: 1px solid #222;
+  cursor: pointer;
+}
+
+.user:hover {
+  background: #202c33;
+}
+
+/* RIGHT */
+.chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 10px;
+  background: #202c33;
+}
+
+.messages {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.msg {
+  margin: 5px 0;
+  padding: 10px;
+  border-radius: 10px;
+  max-width: 60%;
+}
+
+.me {
+  background: #005c4b;
+  align-self: flex-end;
+}
+
+.other {
+  background: #202c33;
+}
+
+.input {
+  display: flex;
+  padding: 10px;
+  background: #202c33;
+}
+
+.input input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 20px;
+  border: none;
+}
+
+.input button {
+  margin-left: 10px;
+  padding: 10px 15px;
+  border: none;
+  background: #00a884;
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+}
+</style>
 </head>
 
 <body>
 
-<button onclick="login()">Войти через Google</button>
-<br><br>
+<!-- LEFT -->
+<div class="sidebar">
+  <div class="search">
+    <input id="searchEmail" placeholder="Поиск по email..." oninput="searchUser()">
+  </div>
+  <div class="users" id="users"></div>
+</div>
 
-<input id="msg">
-<button onclick="send()">Отправить</button>
+<!-- RIGHT -->
+<div class="chat">
+  <div class="header" id="chatHeader">Выберите пользователя</div>
+  <div class="messages" id="messages"></div>
 
-<div id="chat"></div>
+  <div class="input">
+    <input id="msg" placeholder="Сообщение...">
+    <button onclick="send()">➤</button>
+  </div>
+</div>
 
-<script>
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
   authDomain: "database-375f4.firebaseapp.com",
-  projectId: "database-375f4"
+  projectId: "database-375f4",
 };
 
-firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth();
+const db = getFirestore();
+const provider = new GoogleAuthProvider();
 
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-let user;
+let currentUser = null;
+let allUsers = [];
+let currentChatUser = null;
 
 // LOGIN
-function login() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider);
-}
+signInWithPopup(auth, provider);
 
-auth.onAuthStateChanged(u => {
-  user = u;
-  load();
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    currentUser = user;
+
+    await setDoc(doc(db, "users", user.uid), {
+      uid: user.uid,
+      name: user.displayName,
+      email: user.email
+    });
+
+    loadUsers();
+  }
 });
 
-// SEND
-function send() {
-  const text = document.getElementById("msg").value;
+// LOAD USERS
+function loadUsers() {
+  onSnapshot(collection(db, "users"), (snapshot) => {
+    allUsers = [];
 
-  db.collection("messages").add({
-    text: text,
-    uid: user.uid,
-    time: Date.now()
+    snapshot.forEach(docu => {
+      const u = docu.data();
+      if (u.uid !== currentUser.uid) {
+        allUsers.push(u);
+      }
+    });
+
+    renderUsers(allUsers);
   });
 }
 
-// LOAD
-function load() {
-  db.collection("messages")
-    .orderBy("time")
-    .onSnapshot(snap => {
-      const chat = document.getElementById("chat");
-      chat.innerHTML = "";
+// SEARCH
+function searchUser() {
+  const value = document.getElementById("searchEmail").value.toLowerCase();
 
-      snap.forEach(doc => {
-        const m = doc.data();
-        chat.innerHTML += "<div>" + m.text + "</div>";
-      });
-    });
+  const filtered = allUsers.filter(u =>
+    u.email.toLowerCase().includes(value)
+  );
+
+  renderUsers(filtered);
 }
+
+// RENDER USERS
+function renderUsers(users) {
+  const div = document.getElementById("users");
+  div.innerHTML = "";
+
+  users.forEach(u => {
+    const el = document.createElement("div");
+    el.className = "user";
+    el.innerText = u.name + " (" + u.email + ")";
+
+    el.onclick = () => {
+      currentChatUser = u;
+      document.getElementById("chatHeader").innerText = u.name;
+      loadMessages();
+    };
+
+    div.appendChild(el);
+  });
+}
+
+// SEND MESSAGE
+async function send() {
+  const text = document.getElementById("msg").value;
+  if (!text || !currentChatUser) return;
+
+  await addDoc(collection(db, "messages"), {
+    text,
+    sender: currentUser.uid,
+    receiver: currentChatUser.uid,
+    createdAt: new Date()
+  });
+
+  document.getElementById("msg").value = "";
+}
+
+// LOAD MESSAGES
+function loadMessages() {
+  const messagesDiv = document.getElementById("messages");
+
+  const q = query(collection(db, "messages"), orderBy("createdAt"));
+
+  onSnapshot(q, (snapshot) => {
+    messagesDiv.innerHTML = "";
+
+    snapshot.forEach(docu => {
+      const m = docu.data();
+
+      if (
+        (m.sender === currentUser.uid && m.receiver === currentChatUser.uid) ||
+        (m.sender === currentChatUser.uid && m.receiver === currentUser.uid)
+      ) {
+        const div = document.createElement("div");
+
+        div.className = "msg " + (m.sender === currentUser.uid ? "me" : "other");
+        div.innerText = m.text;
+
+        messagesDiv.appendChild(div);
+      }
+    });
+
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  });
+}
+
+window.send = send;
+window.searchUser = searchUser;
 
 </script>
 
