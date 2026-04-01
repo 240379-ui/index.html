@@ -1,50 +1,44 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Google Auth Chat</title>
+    <title>Messenger with Search Button</title>
     <style>
         :root { --google-blue: #4285F4; --bg: #f0f2f5; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
         /* Экран входа */
         #login-screen { position: fixed; inset: 0; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
-        #google-btn { padding: 12px 24px; font-size: 16px; cursor: pointer; background: white; border: 1px solid #dadce0; border-radius: 4px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        #google-btn { padding: 12px 24px; cursor: pointer; background: white; border: 1px solid #dadce0; border-radius: 4px; display: flex; align-items: center; gap: 10px; }
 
-        /* Боковая панель */
+        /* Сайдбар */
         #sidebar { width: 350px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
-        .header-box { padding: 15px; border-bottom: 1px solid #eee; background: #fff; }
-        .search-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; outline: none; }
-        
+        .search-container { padding: 15px; border-bottom: 1px solid #eee; display: flex; gap: 8px; }
+        .search-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+        #searchBtn { background: var(--google-blue); color: white; border: none; border-radius: 8px; padding: 0 15px; cursor: pointer; font-size: 18px; }
+
         #user-list { flex: 1; overflow-y: auto; }
-        .user-item { padding: 12px 15px; cursor: pointer; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f9f9f9; transition: 0.2s; }
+        .user-item { padding: 12px; cursor: pointer; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f9f9f9; }
         .user-item:hover { background: #f8f9fa; }
         .user-item.active { background: #e8f0fe; border-left: 4px solid var(--google-blue); }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #eee; }
-        .user-info { display: flex; flex-direction: column; overflow: hidden; }
-        .user-name { font-weight: 600; font-size: 14px; }
-        .user-email { font-size: 12px; color: #666; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: #eee; }
 
-        /* Основной чат */
+        /* Чат */
         #chat-window { flex: 1; display: flex; flex-direction: column; background: #fff; }
         #messages { flex: 1; padding: 20px; overflow-y: auto; background: #e5ddd5; display: flex; flex-direction: column; gap: 5px; }
-        
-        .msg { padding: 8px 14px; border-radius: 8px; max-width: 70%; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
-        .sent { align-self: flex-end; background: #dcf8c6; color: #000; }
-        .received { align-self: flex-start; background: #fff; color: #000; }
+        .msg { padding: 8px 14px; border-radius: 8px; max-width: 70%; font-size: 14px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .sent { align-self: flex-end; background: #dcf8c6; }
+        .received { align-self: flex-start; background: #fff; }
 
         .input-area { padding: 15px; display: flex; gap: 10px; background: #f0f0f0; border-top: 1px solid #ddd; }
         .input-area input { flex: 1; padding: 12px; border: none; border-radius: 24px; outline: none; }
-        #sendBtn { background: var(--google-blue); color: white; border: none; padding: 0 25px; border-radius: 24px; cursor: pointer; font-weight: bold; }
-        #sendBtn:disabled { background: #ccc; cursor: not-allowed; }
+        #sendBtn { background: var(--google-blue); color: white; border: none; padding: 0 25px; border-radius: 24px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div id="login-screen">
-    <h1 style="color: #555;">Messenger</h1>
+    <h2>Messenger</h2>
     <button id="google-btn">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
         Войти через Google
@@ -52,17 +46,17 @@
 </div>
 
 <div id="sidebar">
-    <div class="header-box">
-        <div id="my-profile" style="margin-bottom: 10px; font-size: 12px; color: #888;"></div>
-        <input type="text" id="searchInput" class="search-input" placeholder="Найти по email (полностью)...">
+    <div class="search-container">
+        <input type="text" id="searchInput" class="search-input" placeholder="Введите email полностью...">
+        <button id="searchBtn">🔍</button>
     </div>
     <div id="user-list">
-        <div style="padding: 20px; text-align: center; color: #999;">Введите email пользователя</div>
+        <div style="padding: 20px; text-align: center; color: #999; font-size: 13px;">Найдите собеседника по почте</div>
     </div>
 </div>
 
 <div id="chat-window">
-    <div id="chat-header" style="padding: 15px; font-weight: bold; border-bottom: 1px solid #ddd; background: #fff;">Выберите контакт</div>
+    <div id="chat-header" style="padding: 15px; font-weight: bold; border-bottom: 1px solid #ddd;">Выберите контакт</div>
     <div id="messages"></div>
     <div class="input-area">
         <input type="text" id="msgInput" placeholder="Введите сообщение..." disabled>
@@ -75,7 +69,6 @@
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, collection, query, where, getDocs, orderBy, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // Конфигурация Firebase
     const firebaseConfig = {
         apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
         authDomain: "database-375f4.firebaseapp.com",
@@ -85,7 +78,6 @@
         appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86"
     };
 
-    // Инициализация
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -95,16 +87,13 @@
     let activeChatId = null;
     let unsubMessages = null;
 
-    // --- ЛОГИКА АВТОРИЗАЦИИ ---
+    // --- Логин ---
     document.getElementById('google-btn').onclick = () => signInWithPopup(auth, provider);
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('my-profile').textContent = `Вы вошли как: ${user.email}`;
-            
-            // СОХРАНЯЕМ В FIRESTORE (чтобы вас могли найти)
             await setDoc(doc(db, "users", user.uid), {
                 name: user.displayName,
                 email: user.email.toLowerCase(),
@@ -116,20 +105,22 @@
         }
     });
 
-    // --- ЛОГИКА ПОИСКА ---
-    const searchInput = document.getElementById('searchInput');
-    searchInput.oninput = async (e) => {
-        const email = e.target.value.trim().toLowerCase();
+    // --- ФУНКЦИЯ ПОИСКА ---
+    async function performSearch() {
+        const email = document.getElementById('searchInput').value.trim().toLowerCase();
         const userList = document.getElementById('user-list');
         
-        if (email.length < 5) return; // Минимум символов для поиска
+        if (!email) return;
+        
+        userList.innerHTML = '<div style="padding:20px; text-align:center;">Поиск...</div>';
 
         const q = query(collection(db, "users"), where("email", "==", email));
         const querySnapshot = await getDocs(q);
         
         userList.innerHTML = "";
+        
         if (querySnapshot.empty) {
-            userList.innerHTML = '<div style="padding:20px; color:red; font-size:12px;">Пользователь не найден в базе данных</div>';
+            userList.innerHTML = '<div style="padding:20px; color:red; text-align:center; font-size:12px;">Пользователь не найден</div>';
             return;
         }
 
@@ -140,35 +131,34 @@
             div.className = 'user-item';
             div.innerHTML = `
                 <img class="avatar" src="${data.photo || ''}">
-                <div class="user-info">
-                    <span class="user-name">${data.name}</span>
-                    <span class="user-email">${data.email}</span>
+                <div>
+                    <div style="font-weight:bold;">${data.name}</div>
+                    <div style="font-size:11px; color:gray;">${data.email}</div>
                 </div>
             `;
             div.onclick = () => selectChat(uDoc.id, data.name, div);
             userList.appendChild(div);
         });
-    };
+    }
 
-    // --- ВЫБОР ЧАТА ---
+    // Слушатели для кнопки и Enter
+    document.getElementById('searchBtn').onclick = performSearch;
+    document.getElementById('searchInput').onkeypress = (e) => e.key === 'Enter' && performSearch();
+
+    // --- Остальная логика чата ---
     function selectChat(targetUid, targetName, el) {
         document.querySelectorAll('.user-item').forEach(i => i.classList.remove('active'));
         el.classList.add('active');
-        
-        document.getElementById('chat-header').textContent = "Чат с: " + targetName;
+        document.getElementById('chat-header').textContent = targetName;
         document.getElementById('msgInput').disabled = false;
         document.getElementById('sendBtn').disabled = false;
-
-        // Создаем уникальный ID для пары пользователей
         activeChatId = [currentUser.uid, targetUid].sort().join("_");
         loadMessages(activeChatId);
     }
 
-    // --- ЗАГРУЗКА СООБЩЕНИЙ ---
     function loadMessages(chatId) {
         if (unsubMessages) unsubMessages();
         const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
-        
         unsubMessages = onSnapshot(q, (snapshot) => {
             const container = document.getElementById('messages');
             container.innerHTML = "";
@@ -183,22 +173,15 @@
         });
     }
 
-    // --- ОТПРАВКА ---
     async function sendMessage() {
         const input = document.getElementById('msgInput');
-        const text = input.value.trim();
-        if (!text || !activeChatId) return;
-
-        try {
-            await addDoc(collection(db, "chats", activeChatId, "messages"), {
-                senderId: currentUser.uid,
-                text: text,
-                timestamp: serverTimestamp()
-            });
-            input.value = "";
-        } catch (err) {
-            alert("Ошибка при отправке. Проверьте Rules в консоли Firebase.");
-        }
+        if (!input.value.trim() || !activeChatId) return;
+        await addDoc(collection(db, "chats", activeChatId, "messages"), {
+            senderId: currentUser.uid,
+            text: input.value,
+            timestamp: serverTimestamp()
+        });
+        input.value = "";
     }
 
     document.getElementById('sendBtn').onclick = sendMessage;
