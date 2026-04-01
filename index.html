@@ -1,123 +1,148 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Личные сообщения</title>
-  <script type="module">
+    <meta charset="UTF-8">
+    <title>Firebase DM System</title>
+    <style>
+        :root { --primary: #0084ff; --bg: #f0f2f5; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; }
+        
+        /* Боковая панель пользователей */
+        #sidebar { width: 250px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+        #sidebar h3 { padding: 15px; margin: 0; border-bottom: 1px solid #ddd; font-size: 16px; }
+        .user-item { padding: 15px; cursor: pointer; border-bottom: 1px solid #eee; transition: 0.2s; }
+        .user-item:hover { background: #f0f7ff; }
+        .user-item.active { background: #e7f3ff; font-weight: bold; color: var(--primary); }
+
+        /* Окно чата */
+        #chat-main { flex: 1; display: flex; flex-direction: column; background: #fff; }
+        #chat-header { padding: 15px; border-bottom: 1px solid #ddd; font-weight: bold; background: #fff; }
+        #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f9f9f9; }
+        
+        /* Пузыри сообщений */
+        .msg { padding: 8px 12px; border-radius: 18px; max-width: 70%; word-wrap: break-word; font-size: 14px; }
+        .sent { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
+        .received { align-self: flex-start; background: #e4e6eb; color: black; border-bottom-left-radius: 2px; }
+
+        .input-area { padding: 15px; display: flex; gap: 10px; border-top: 1px solid #ddd; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
+        button { padding: 8px 20px; border: none; background: var(--primary); color: white; border-radius: 20px; cursor: pointer; }
+        button:disabled { background: #ccc; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h3>Мои контакты</h3>
+    <div id="user-list">Загрузка пользователей...</div>
+</div>
+
+<div id="chat-main">
+    <div id="chat-header">Выберите, кому написать</div>
+    <div id="messages"></div>
+    <div class="input-area">
+        <input type="text" id="msgInput" placeholder="Сообщение..." disabled>
+        <button id="sendBtn" disabled>Отправить</button>
+    </div>
+</div>
+
+<script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, setDoc, doc } 
+    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
-      authDomain: "database-375f4.firebaseapp.com",
-      projectId: "database-375f4",
-      storageBucket: "database-375f4.appspot.com",
-      messagingSenderId: "155181454067",
-      appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86",
-      measurementId: "G-TB3G4KSQ8S"
+        apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
+        authDomain: "database-375f4.firebaseapp.com",
+        projectId: "database-375f4",
+        storageBucket: "database-375f4.firebasestorage.app",
+        messagingSenderId: "155181454067",
+        appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86"
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
     const db = getFirestore(app);
 
-    const loginBtn = document.getElementById("login");
-    const logoutBtn = document.getElementById("logout");
-    const chatBox = document.getElementById("chat");
-    const form = document.getElementById("form");
-    const input = document.getElementById("message");
-    const userSelect = document.getElementById("userSelect");
+    // --- ИМИТАЦИЯ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ ---
+    // В реальности тут должен быть Firebase Auth (например, user.uid)
+    const MY_ID = "current_user_1"; 
+    const MY_NAME = "Я (Admin)";
 
-    loginBtn.onclick = () => signInWithPopup(auth, provider);
-    logoutBtn.onclick = () => signOut(auth);
+    let activeChatId = null;
+    let unsubscribeMessages = null;
 
-    let currentUser = null;
-    let currentChatWith = null;
+    // 1. Регистрируем себя в базе (чтобы другие нас видели)
+    await setDoc(doc(db, "users", MY_ID), { name: MY_NAME, online: true }, { merge: true });
 
-    onAuthStateChanged(auth, user => {
-      if (user) {
-        currentUser = user;
-        loginBtn.style.display = "none";
-        logoutBtn.style.display = "inline-block";
-        form.style.display = "flex";
-        userSelect.style.display = "inline-block";
-      } else {
-        currentUser = null;
-        loginBtn.style.display = "inline-block";
-        logoutBtn.style.display = "none";
-        form.style.display = "none";
-        userSelect.style.display = "none";
-        chatBox.innerHTML = "";
-      }
+    // 2. Подгружаем список ВСЕХ пользователей из базы
+    onSnapshot(collection(db, "users"), (snapshot) => {
+        const userList = document.getElementById('user-list');
+        userList.innerHTML = "";
+        snapshot.forEach(uDoc => {
+            if (uDoc.id !== MY_ID) { // Не показываем себя в списке
+                const user = uDoc.data();
+                const div = document.createElement('div');
+                div.className = 'user-item';
+                div.textContent = user.name || uDoc.id;
+                div.onclick = () => selectUser(uDoc.id, user.name || uDoc.id, div);
+                userList.appendChild(div);
+            }
+        });
     });
 
-    // Выбор собеседника
-    userSelect.onchange = () => {
-      currentChatWith = userSelect.value;
-      loadMessages();
-    };
+    // 3. Логика выбора пользователя
+    function selectUser(targetUserId, targetName, element) {
+        // Подсвечиваем активного
+        document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
 
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      if (!input.value.trim() || !currentChatWith) return;
-      await addDoc(collection(db, "messages"), {
-        text: input.value,
-        from: currentUser.uid,
-        to: currentChatWith,
-        displayName: currentUser.displayName,
-        createdAt: serverTimestamp()
-      });
-      input.value = "";
-    };
+        document.getElementById('chat-header').textContent = "Чат с: " + targetName;
+        document.getElementById('msgInput').disabled = false;
+        document.getElementById('sendBtn').disabled = false;
 
-    function loadMessages() {
-      if (!currentChatWith) return;
-      const q = query(
-        collection(db, "messages"),
-        where("from", "in", [currentUser.uid, currentChatWith]),
-        where("to", "in", [currentUser.uid, currentChatWith]),
-        orderBy("createdAt")
-      );
-      onSnapshot(q, snapshot => {
-        chatBox.innerHTML = "";
-        snapshot.forEach(doc => {
-          const msg = doc.data();
-          const div = document.createElement("div");
-          div.className = msg.from === currentUser.uid ? "own" : "other";
-          div.innerHTML = `<strong>${msg.displayName}:</strong> ${msg.text}`;
-          chatBox.appendChild(div);
-        });
-        chatBox.scrollTop = chatBox.scrollHeight;
-      });
+        // Создаем уникальный ID чата (всегда одинаковый для этой пары людей)
+        activeChatId = [MY_ID, targetUserId].sort().join("_");
+
+        loadMessages(activeChatId);
     }
-  </script>
-  <style>
-    body { font-family: sans-serif; text-align: center; }
-    #chat { border: 1px solid #ccc; height: 300px; width: 400px; margin: 10px auto; overflow-y: scroll; padding: 10px; }
-    .own { text-align: right; background: #007bff; color: white; margin: 5px; padding: 8px; border-radius: 12px; display: inline-block; }
-    .other { text-align: left; background: #e5e5ea; color: black; margin: 5px; padding: 8px; border-radius: 12px; display: inline-block; }
-    #form { margin-top: 10px; display: none; justify-content: center; }
-    #message { width: 300px; padding: 8px; }
-    button { padding: 8px 12px; margin: 5px; }
-    #userSelect { margin: 10px; display: none; }
-  </style>
-</head>
-<body>
-  <h2>🔥 Личные сообщения</h2>
-  <button id="login">Войти через Google</button>
-  <button id="logout" style="display:none;">Выйти</button>
-  <select id="userSelect">
-    <option value="">-- Выберите собеседника --</option>
-    <!-- Здесь можно динамически подгружать список пользователей -->
-    <option value="USER_UID_1">Пользователь 1</option>
-    <option value="USER_UID_2">Пользователь 2</option>
-  </select>
-  <div id="chat"></div>
-  <form id="form">
-    <input id="message" placeholder="Ваше сообщение..." />
-    <button type="submit">➤</button>
-  </form>
+
+    // 4. Загрузка сообщений конкретного чата
+    function loadMessages(chatId) {
+        if (unsubscribeMessages) unsubscribeMessages(); // Отписываемся от старого чата
+
+        const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
+        
+        unsubscribeMessages = onSnapshot(q, (snapshot) => {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = "";
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const div = document.createElement('div');
+                div.className = `msg ${data.senderId === MY_ID ? 'sent' : 'received'}`;
+                div.textContent = data.text;
+                messagesDiv.appendChild(div);
+            });
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+    }
+
+    // 5. Отправка
+    async function sendMessage() {
+        const input = document.getElementById('msgInput');
+        const text = input.value.trim();
+        if (!text || !activeChatId) return;
+
+        await addDoc(collection(db, "chats", activeChatId, "messages"), {
+            senderId: MY_ID,
+            text: text,
+            timestamp: serverTimestamp()
+        });
+        input.value = "";
+    }
+
+    document.getElementById('sendBtn').onclick = sendMessage;
+    document.getElementById('msgInput').onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
+
+</script>
 </body>
 </html>
