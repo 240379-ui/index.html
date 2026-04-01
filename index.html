@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>DarkWave Chat | Приватные сообщения + Лента</title>
+    <title>WaveChat | Приватные сообщения + Лента</title>
     <style>
         * {
             margin: 0;
@@ -12,116 +12,362 @@
         }
         
         body {
-            font-family: 'Poppins', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
-            background: #0a0c15;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+            background: #0b141a;
             min-height: 100vh;
         }
         
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 20% 30%, rgba(76, 29, 149, 0.2), rgba(0, 0, 0, 0.95));
-            z-index: -2;
-        }
-        
+        /* WhatsApp стиль */
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: 320px 1fr 1fr;
-            gap: 24px;
-            position: relative;
-            z-index: 1;
+            grid-template-columns: 380px 1fr 1fr;
+            gap: 0;
+            height: 100vh;
+            background: #111b21;
+            overflow: hidden;
         }
         
+        /* Стиль как у WhatsApp Web */
         .card {
-            background: rgba(18, 22, 35, 0.9);
-            backdrop-filter: blur(12px);
-            border-radius: 28px;
-            padding: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .card:hover {
-            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(139, 92, 246, 0.2);
+            background: #111b21;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+            border-right: 1px solid #2a3942;
         }
         
         .sidebar {
-            height: fit-content;
+            border-right: 1px solid #2a3942;
+            background: #111b21;
         }
         
-        .chat-area, .feed-area {
+        .chat-area {
+            border-right: 1px solid #2a3942;
+            background: #0b141a;
+        }
+        
+        .feed-area {
+            background: #0b141a;
+        }
+        
+        /* Шапка в стиле WhatsApp */
+        .whatsapp-header {
+            background: #202c33;
+            padding: 14px 16px;
             display: flex;
-            flex-direction: column;
-            height: calc(100vh - 40px);
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #2a3942;
+            flex-shrink: 0;
         }
         
-        .messages-container {
-            flex-grow: 1;
-            overflow-y: auto;
-            margin-bottom: 20px;
-            padding-right: 8px;
-            scroll-behavior: smooth;
+        .whatsapp-header h1 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            background: none;
+            -webkit-background-clip: unset;
+            background-clip: unset;
+            color: #e9edef;
+            margin: 0;
         }
         
-        .messages-container::-webkit-scrollbar {
-            width: 4px;
-        }
-        
-        .messages-container::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 10px;
-        }
-        
-        .messages-container::-webkit-scrollbar-thumb {
-            background: #8b5cf6;
-            border-radius: 10px;
-        }
-        
-        h1 {
-            font-size: 1.6rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #c084fc, #a78bfa, #60a5fa);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            margin-bottom: 6px;
-            letter-spacing: -0.5px;
+        .whatsapp-header h2 {
+            font-size: 1rem;
+            font-weight: 500;
+            background: none;
+            -webkit-background-clip: unset;
+            color: #e9edef;
+            margin: 0;
         }
         
         .subtitle {
-            color: #6c727f;
-            margin-bottom: 24px;
-            font-size: 0.75rem;
-            border-left: 2px solid #8b5cf6;
-            padding-left: 12px;
-            font-weight: 400;
+            display: none;
         }
         
-        .auth-section {
-            margin-bottom: 28px;
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: #0b141a;
         }
         
-        #authButtons {
+        .messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .messages-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .messages-container::-webkit-scrollbar-thumb {
+            background: #2a3942;
+            border-radius: 3px;
+        }
+        
+        /* WhatsApp стиль сообщений */
+        .message {
+            background: #202c33;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-left: none;
+            position: relative;
+            max-width: 85%;
+            width: fit-content;
+            min-width: 200px;
+        }
+        
+        .message-own {
+            background: #005c4b;
+            margin-left: auto;
+            margin-right: 0;
+        }
+        
+        .message-own .author-name {
+            color: #d1d7db;
+        }
+        
+        .message-own .message-text {
+            color: #e9edef;
+        }
+        
+        .message.deleted {
+            opacity: 0.6;
+            background: #1f2c33;
+        }
+        
+        .message-header {
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .author-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .author-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #2a3942;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8696a0;
+            font-weight: 500;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        
+        .author-name {
+            font-weight: 500;
+            color: #00a884;
+            font-size: 0.8rem;
+        }
+        
+        .timestamp {
+            font-size: 0.65rem;
+            color: #8696a0;
+        }
+        
+        .message-text {
+            margin: 4px 0;
+            line-height: 1.4;
+            color: #e9edef;
+            font-size: 0.9rem;
+            word-break: break-word;
+        }
+        
+        .deleted-text {
+            color: #8696a0;
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+        
+        .message-actions {
+            display: flex;
             gap: 12px;
+            margin-top: 8px;
+            justify-content: flex-end;
+        }
+        
+        .like-btn, .delete-btn {
+            width: auto;
+            padding: 4px 12px;
+            font-size: 0.7rem;
+            border-radius: 20px;
+            background: transparent;
+            margin-top: 0;
+            border: none;
+            color: #8696a0;
+        }
+        
+        .like-btn {
+            background: transparent;
+            color: #8696a0;
+        }
+        
+        .like-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .delete-btn {
+            background: transparent;
+            color: #8696a0;
+        }
+        
+        .delete-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: none;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 500;
+        }
+        
+        .badge-deleted {
+            background: #2a3942;
+            color: #8696a0;
+        }
+        
+        /* Стиль списка чатов */
+        .users-list-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .user-list-item {
+            padding: 12px 16px;
+            margin: 0;
+            background: transparent;
+            border-radius: 0;
+            cursor: pointer;
+            transition: background 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: none;
+            border-bottom: 1px solid #2a3942;
+        }
+        
+        .user-list-item:hover {
+            background: #2a3942;
+            transform: none;
+        }
+        
+        .user-list-item.active {
+            background: #2a3942;
+        }
+        
+        .user-list-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #2a3942;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8696a0;
+            font-weight: 500;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        
+        .user-list-item.active .user-list-avatar {
+            background: #3b4a54;
+        }
+        
+        /* Форма ввода */
+        .input-area {
+            background: #202c33;
+            padding: 12px 16px;
+            flex-shrink: 0;
+        }
+        
+        textarea, input {
+            width: 100%;
+            padding: 10px 14px;
+            margin: 0;
+            background: #2a3942;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            color: #e9edef;
+            resize: none;
+        }
+        
+        textarea:focus, input:focus {
+            outline: none;
+            background: #2a3942;
+            box-shadow: none;
+        }
+        
+        textarea {
+            min-height: 40px;
+            max-height: 100px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #00a884;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.1s;
+            margin-top: 8px;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #008f6b;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        button:disabled {
+            background: #2a3942;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        /* Аватар в шапке */
+        .avatar-small {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #2a3942;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8696a0;
+            font-weight: 500;
+            font-size: 16px;
         }
         
         .user-info {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: rgba(255, 255, 255, 0.03);
-            padding: 8px 16px;
-            border-radius: 60px;
-            border: 1px solid rgba(139, 92, 246, 0.3);
+            width: 100%;
         }
         
         .user-info-left {
@@ -135,366 +381,188 @@
             gap: 8px;
         }
         
-        .user-avatar {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #8b5cf6;
-        }
-        
         .google-btn, .logout-btn {
-            padding: 10px 18px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 40px;
+            border-radius: 20px;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 500;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            transition: all 0.25s;
-            font-size: 13px;
+            gap: 8px;
+            transition: background 0.1s;
+            font-size: 0.8rem;
         }
         
         .google-btn {
-            background: linear-gradient(105deg, #3b82f6, #8b5cf6);
+            background: #00a884;
             color: white;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
         
         .google-btn:hover {
-            transform: translateY(-2px);
-            filter: brightness(1.05);
-            box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+            background: #008f6b;
+            transform: none;
         }
         
         .logout-btn {
-            background: rgba(239, 68, 68, 0.85);
-            color: white;
-            padding: 6px 14px;
+            background: #2a3942;
+            color: #e9edef;
+            padding: 6px 12px;
         }
         
         .logout-btn:hover {
-            background: #ef4444;
-            transform: scale(0.96);
+            background: #3b4a54;
+            transform: none;
         }
         
         .switch-btn {
-            background: rgba(100, 116, 139, 0.8);
-        }
-        
-        .switch-btn:hover {
-            background: #475569;
-        }
-        
-        textarea, input {
-            width: 100%;
-            padding: 12px 16px;
-            margin: 10px 0;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 24px;
-            font-size: 14px;
-            font-family: inherit;
-            color: #e2e8f0;
-            transition: all 0.2s;
-            resize: vertical;
-        }
-        
-        textarea:focus, input:focus {
-            outline: none;
-            border-color: #a78bfa;
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
-        }
-        
-        textarea {
-            min-height: 80px;
-        }
-        
-        button {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(95deg, #7c3aed, #4f46e5);
-            color: white;
-            border: none;
-            border-radius: 40px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.25s;
-            margin-top: 8px;
-        }
-        
-        button:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35);
-        }
-        
-        button:disabled {
-            background: #2d3748;
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
-        
-        .message {
-            background: rgba(30, 34, 48, 0.7);
-            border-radius: 20px;
-            padding: 16px;
-            margin-bottom: 14px;
-            border-left: 3px solid #8b5cf6;
-            transition: all 0.2s;
-        }
-        
-        .message.deleted {
-            opacity: 0.5;
-            background: rgba(0, 0, 0, 0.3);
-            border-left-color: #4b5563;
-        }
-        
-        .message-own {
-            background: rgba(79, 70, 229, 0.15);
-            border-left-color: #f97316;
-        }
-        
-        .message-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        
-        .author-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .author-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            object-fit: cover;
-            background: linear-gradient(135deg, #8b5cf6, #4f46e5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        
-        .author-name {
-            font-weight: 700;
-            color: #c4b5fd;
-            font-size: 0.85rem;
-        }
-        
-        .timestamp {
-            font-size: 10px;
-            color: #6b7280;
-        }
-        
-        .message-text {
-            margin: 10px 0;
-            line-height: 1.5;
-            color: #e5e7eb;
-            font-size: 14px;
-            word-break: break-word;
-        }
-        
-        .deleted-text {
-            color: #9ca3af;
-            font-style: italic;
-        }
-        
-        .message-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 12px;
-            flex-wrap: wrap;
-        }
-        
-        .like-btn, .delete-btn {
-            width: auto;
-            padding: 5px 18px;
-            font-size: 12px;
-            border-radius: 40px;
-            background: #1f2937;
-            margin-top: 0;
-        }
-        
-        .like-btn {
-            background: #991b1b;
-        }
-        
-        .like-btn:hover {
-            background: #dc2626;
-        }
-        
-        .delete-btn {
-            background: #374151;
-        }
-        
-        .delete-btn:hover {
-            background: #4b5563;
+            background: #2a3942;
         }
         
         .notification {
             display: none;
-            padding: 10px;
-            border-radius: 40px;
-            margin-top: 12px;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 8px;
             text-align: center;
-            font-size: 12px;
+            font-size: 0.8rem;
             font-weight: 500;
+            z-index: 1000;
+            background: #202c33;
+            color: #e9edef;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
         
         .notification.success {
-            background: #10b981cc;
+            background: #00a884;
             color: white;
         }
         
         .notification.error {
-            background: #ef4444cc;
+            background: #d3392c;
             color: white;
         }
         
         .notification.warning {
-            background: #f59e0bcc;
-            color: #1e1b2f;
-        }
-        
-        .badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 30px;
-            font-size: 9px;
-            font-weight: bold;
-        }
-        
-        .badge-deleted {
-            background: #dc2626;
-            color: white;
-        }
-        
-        .user-list-item {
-            padding: 12px;
-            margin: 8px 0;
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 24px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border: 1px solid transparent;
-        }
-        
-        .user-list-item:hover {
-            background: rgba(139, 92, 246, 0.15);
-            border-color: rgba(139, 92, 246, 0.4);
-            transform: translateX(5px);
-        }
-        
-        .user-list-item.active {
-            background: linear-gradient(115deg, #7c3aed, #4f46e5);
-            border-color: #a78bfa;
-        }
-        
-        .user-list-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #8b5cf6, #c084fc);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
+            background: #f2b807;
+            color: #111b21;
         }
         
         .empty-chat {
             text-align: center;
             padding: 40px 20px;
-            color: #6b7280;
-            font-size: 14px;
-        }
-        
-        .form-disabled {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-        
-        .info-text {
-            background: rgba(0, 0, 0, 0.4);
-            padding: 10px;
-            border-radius: 20px;
-            margin-top: 20px;
-            font-size: 11px;
-            color: #a78bfa;
-            text-align: center;
+            color: #8696a0;
+            font-size: 0.85rem;
         }
         
         .loading {
             text-align: center;
             padding: 30px;
-            color: #6b7280;
+            color: #8696a0;
         }
         
-        h2 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            background: linear-gradient(135deg, #e2e8f0, #c084fc);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+        .info-text {
+            background: #202c33;
+            padding: 8px 12px;
+            margin-top: auto;
+            font-size: 0.7rem;
+            color: #8696a0;
+            text-align: center;
+            border-top: 1px solid #2a3942;
         }
         
         h3 {
-            font-size: 0.8rem;
-            margin-bottom: 16px;
-            color: #9ca3af;
-            letter-spacing: 0.5px;
+            font-size: 0.75rem;
+            margin: 0;
+            padding: 16px 16px 8px;
+            color: #8696a0;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
         }
         
-        @media (max-width: 1000px) {
+        .char-counter {
+            text-align: right;
+            font-size: 0.65rem;
+            color: #8696a0;
+            margin-top: 4px;
+        }
+        
+        .image-upload-area {
+            display: none;
+        }
+        
+        .image-preview {
+            display: none;
+        }
+        
+        .upload-progress {
+            display: none;
+        }
+        
+        /* Адаптив */
+        @media (max-width: 900px) {
             .container {
                 grid-template-columns: 1fr;
-                gap: 20px;
             }
-            body {
-                padding: 16px;
+            
+            .sidebar, .chat-area, .feed-area {
+                display: none;
+            }
+            
+            .sidebar.active, .chat-area.active, .feed-area.active {
+                display: flex;
             }
         }
         
         .demo-login {
             margin-top: 12px;
             padding: 12px;
-            background: rgba(59, 130, 246, 0.1);
-            border-radius: 16px;
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            background: #202c33;
+            border-radius: 12px;
         }
         
         .demo-login p {
-            font-size: 11px;
-            color: #94a3b8;
+            font-size: 0.7rem;
+            color: #8696a0;
             margin-bottom: 8px;
         }
         
         .demo-btn {
-            background: rgba(59, 130, 246, 0.3);
-            color: #60a5fa;
-            font-size: 12px;
+            background: #2a3942;
+            color: #e9edef;
+            font-size: 0.75rem;
             padding: 8px;
         }
         
         .demo-btn:hover {
-            background: rgba(59, 130, 246, 0.5);
+            background: #3b4a54;
+        }
+        
+        .auth-section {
+            padding: 16px;
+            border-bottom: 1px solid #2a3942;
+        }
+        
+        .chat-header-info {
+            flex: 1;
+            margin-left: 12px;
+        }
+        
+        .chat-header-info h2 {
+            font-size: 1rem;
+            font-weight: 500;
+            margin: 0;
+        }
+        
+        .chat-header-info p {
+            font-size: 0.7rem;
+            color: #8696a0;
+            margin: 2px 0 0;
         }
     </style>
     
@@ -504,28 +572,29 @@
 </head>
 <body>
 <div class="container">
+    <!-- Сайдбар - список чатов -->
     <div class="card sidebar">
-        <h1>FireBase</h1>
-        <div class="subtitle">
-            
+        <div class="whatsapp-header">
+            <h1>WaveChat</h1>
+            <div style="width: 40px;"></div>
         </div>
         
         <div class="auth-section">
             <div id="authButtons">
                 <button class="google-btn" id="googleSignInBtn">
-                    Войти через Google
+                    🔑 Google
                 </button>
-                <button class="google-btn" id="guestModeBtn" style="background: #2d2b3a;">
-                    Гостевой режим
+                <button class="google-btn" id="guestModeBtn" style="background: #2a3942;">
+                    👁️ Гость
                 </button>
                 <div class="demo-login">
-                    <p>📱 Демо-режим (если Google не работает):</p>
-                    <button class="demo-btn" id="demoLoginBtn">Войти как Демо-пользователь</button>
+                    <p>⚡ Демо-режим:</p>
+                    <button class="demo-btn" id="demoLoginBtn">🎭 Войти как демо</button>
                 </div>
             </div>
             <div class="user-info" id="userInfo" style="display: none;">
                 <div class="user-info-left">
-                    <div class="user-avatar" id="userAvatarDiv">👤</div>
+                    <div class="avatar-small" id="userAvatarDiv">👤</div>
                     <span id="userNameDisplay" style="font-weight:500;"></span>
                 </div>
                 <div class="user-info-buttons">
@@ -535,66 +604,74 @@
             </div>
         </div>
         
-        <div style="margin-top: 24px;">
-            <h3>Собеседники</h3>
+        <div class="users-list-container">
+            <h3>Чаты</h3>
             <div id="usersList">
                 <div class="loading">Авторизуйтесь для общения</div>
             </div>
         </div>
         
         <div class="info-text" id="infoText">
-            🎧 Статус: <span id="authStatus">Ожидание входа</span>
+            <span id="authStatus">Ожидание входа</span>
         </div>
     </div>
     
+    <!-- Личный чат -->
     <div class="card chat-area">
-        <div id="chatHeader" style="border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 14px; margin-bottom: 18px;">
-            <h2 id="chatWithName">Выберите собеседника</h2>
+        <div class="whatsapp-header" id="chatHeader">
+            <div style="width: 40px;"></div>
+            <div class="chat-header-info">
+                <h2 id="chatWithName">Выберите чат</h2>
+                <p id="chatStatus">Нажмите на собеседника</p>
+            </div>
+            <div style="width: 40px;"></div>
         </div>
         
         <div class="messages-container" id="privateMessagesList">
-            <div class="empty-chat">Нажмите на пользователя из списка</div>
+            <div class="empty-chat">👈 Выберите чат из списка</div>
         </div>
         
-        <div id="privateInputArea" style="display: none;">
-            <textarea id="privateMessageText" rows="3" placeholder="Ваше личное сообщение..." maxlength="1000"></textarea>
-            <div style="text-align: right; font-size: 10px; color: #6b7280; margin-top: -5px; margin-bottom: 8px;">
+        <div id="privateInputArea" class="input-area" style="display: none;">
+            <textarea id="privateMessageText" rows="1" placeholder="Введите сообщение..." maxlength="1000"></textarea>
+            <div class="char-counter">
                 <span id="privateCharCount">0</span>/1000
             </div>
-            <button id="privateSendBtn">Отправить сообщение</button>
+            <button id="privateSendBtn">Отправить</button>
         </div>
         
         <div class="notification success" id="privateSuccessMsg">✓ Отправлено</div>
         <div class="notification error" id="privateErrorMsg">✗ Ошибка</div>
-        <div class="notification warning" id="privateWarningMsg">Запрещенные слова</div>
+        <div class="notification warning" id="privateWarningMsg">⚠️ Запрещенные слова</div>
     </div>
     
+    <!-- Общая лента -->
     <div class="card feed-area">
-        <h2>Волна сообщений</h2>
-        <div style="font-size: 11px; color: #a78bfa; margin-bottom: 14px;">
-            Все пользователи | Живая лента
+        <div class="whatsapp-header">
+            <h2>Общая лента</h2>
+            <div style="width: 40px;"></div>
         </div>
         
         <div class="messages-container" id="feedMessagesList">
             <div class="loading">Загрузка...</div>
         </div>
         
-        <div id="feedForm">
-            <input type="text" id="feedAuthor" placeholder="Ваше имя" readonly style="background: #0f0f1a;">
-            <textarea id="feedText" rows="3" placeholder="Поделитесь мыслями..." maxlength="500"></textarea>
-            <div style="text-align: right; font-size: 10px; color: #6b7280; margin-top: -5px; margin-bottom: 8px;">
+        <div id="feedForm" class="input-area">
+            <input type="text" id="feedAuthor" placeholder="Ваше имя" readonly style="background: #2a3942; margin-bottom: 8px;">
+            <textarea id="feedText" rows="2" placeholder="Поделитесь мыслями..." maxlength="500"></textarea>
+            <div class="char-counter">
                 <span id="feedCharCount">0</span>/500
             </div>
             <button id="feedSendBtn">Опубликовать</button>
         </div>
         
-        <div class="notification success" id="feedSuccessMsg">Опубликовано</div>
-        <div class="notification error" id="feedErrorMsg">Ошибка</div>
-        <div class="notification warning" id="feedWarningMsg">Недопустимые слова</div>
+        <div class="notification success" id="feedSuccessMsg">✅ Опубликовано</div>
+        <div class="notification error" id="feedErrorMsg">❌ Ошибка</div>
+        <div class="notification warning" id="feedWarningMsg">⚠️ Недопустимые слова</div>
     </div>
 </div>
 
 <script>
+    // ==================== ВСЯ ТЕХНИЧЕСКАЯ ЧАСТЬ ОСТАЕТСЯ НЕТРОНУТОЙ ====================
     const firebaseConfig = {
         apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
         authDomain: "database-375f4.firebaseapp.com",
@@ -674,10 +751,7 @@
             userInfo.style.display = 'flex';
             const displayName = user.displayName || user.email?.split('@')[0] || 'Пользователь';
             userAvatarDiv.textContent = getInitials(displayName);
-            userAvatarDiv.style.background = 'linear-gradient(135deg, #8b5cf6, #4f46e5)';
-            userAvatarDiv.style.display = 'flex';
-            userAvatarDiv.style.alignItems = 'center';
-            userAvatarDiv.style.justifyContent = 'center';
+            userAvatarDiv.style.background = '#2a3942';
             document.getElementById('userNameDisplay').textContent = displayName;
             authStatusSpan.innerHTML = '✨ ' + displayName;
             feedForm.classList.remove('form-disabled');
@@ -703,7 +777,8 @@
             document.getElementById('usersList').innerHTML = '<div class="loading">🔐 Войдите для общения</div>';
             document.getElementById('privateMessagesList').innerHTML = '<div class="empty-chat">✨ Войдите в аккаунт</div>';
             document.getElementById('privateInputArea').style.display = 'none';
-            document.getElementById('chatWithName').innerHTML = '🔒 Требуется вход';
+            document.getElementById('chatWithName').innerHTML = 'Требуется вход';
+            document.getElementById('chatStatus').innerHTML = 'Авторизуйтесь для общения';
             if (unsubscribePrivateMessages) unsubscribePrivateMessages();
             if (unsubscribeFeed) unsubscribeFeed();
             if (feedPostsRef) loadFeed();
@@ -738,7 +813,8 @@
                     <div class="user-list-item ${isActive ? 'active' : ''}" onclick="selectUser('${user.uid}', '${escapeHtml(user.displayName)}')">
                         <div class="user-list-avatar">${initials}</div>
                         <div style="flex:1;">
-                            <span class="author-name">${escapeHtml(user.displayName)}</span>
+                            <div style="font-weight:500; color:#e9edef;">${escapeHtml(user.displayName)}</div>
+                            <div style="font-size:0.7rem; color:#8696a0;">Нажмите для чата</div>
                         </div>
                     </div>
                 `;
@@ -757,7 +833,8 @@
         selectedUser = { uid, displayName };
         document.querySelectorAll('.user-list-item').forEach(el => el.classList.remove('active'));
         if (event && event.currentTarget) event.currentTarget.classList.add('active');
-        document.getElementById('chatWithName').innerHTML = `💬 Чат с: ${escapeHtml(displayName)}`;
+        document.getElementById('chatWithName').innerHTML = escapeHtml(displayName);
+        document.getElementById('chatStatus').innerHTML = 'онлайн';
         document.getElementById('privateInputArea').style.display = 'block';
         loadPrivateMessages();
     };
@@ -817,7 +894,7 @@
         
         const btn = document.getElementById('privateSendBtn');
         btn.disabled = true;
-        btn.textContent = '⏳ Отправка...';
+        btn.textContent = 'Отправка...';
         try {
             const chatId = getChatId(currentUser.uid, selectedUser.uid);
             await db.collection('private_messages').doc(chatId).collection('messages').add({
@@ -839,11 +916,13 @@
             console.error(err);
             showNotification('private', 'error', err.message); 
         }
-        finally { btn.disabled = false; btn.textContent = '💬 Отправить сообщение'; }
+        finally { btn.disabled = false; btn.textContent = 'Отправить'; }
     };
     
     document.getElementById('privateMessageText').addEventListener('input', function() {
         document.getElementById('privateCharCount').textContent = this.value.length;
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 100) + 'px';
     });
     document.getElementById('feedText').addEventListener('input', function() {
         document.getElementById('feedCharCount').textContent = this.value.length;
@@ -866,7 +945,7 @@
                 const authorInitials = getInitials(data.author);
                 
                 html += `
-                    <div class="message ${isDeleted ? 'deleted' : ''}">
+                    <div class="message ${isDeleted ? 'deleted' : ''}" style="${!isDeleted && !isAuthor ? 'margin-left:0; margin-right:auto;' : ''}">
                         <div class="message-header">
                             <div class="author-info">
                                 <div class="author-avatar">${authorInitials}</div>
@@ -909,7 +988,7 @@
         if (containsBadWords(text)) { showNotification('feed', 'warning', 'Запрещенные слова'); document.getElementById('feedText').value = ''; document.getElementById('feedCharCount').textContent = '0'; return; }
         
         const btn = document.getElementById('feedSendBtn');
-        btn.disabled = true; btn.textContent = '⏳ Публикация...';
+        btn.disabled = true; btn.textContent = 'Публикация...';
         try {
             await feedPostsRef.add({
                 author: currentUser.displayName || currentUser.email?.split('@')[0],
@@ -923,20 +1002,19 @@
             document.getElementById('feedCharCount').textContent = '0';
             showNotification('feed', 'success', 'Опубликовано');
         } catch (err) { showNotification('feed', 'error', err.message); }
-        finally { btn.disabled = false; btn.textContent = '✨ Опубликовать'; }
+        finally { btn.disabled = false; btn.textContent = 'Опубликовать'; }
     };
     
-    // Демо-вход (работает всегда)
     document.getElementById('demoLoginBtn').onclick = async () => {
         const demoUser = {
             uid: 'demo_' + Date.now(),
             displayName: 'Demo_' + Math.floor(Math.random() * 1000),
-            email: 'demo@darkwave.chat',
+            email: 'demo@wavechat.chat',
             isDemo: true
         };
         currentUser = demoUser;
         await updateUIForAuth(currentUser);
-        showNotification('feed', 'success', `Добро пожаловать, ${currentUser.displayName}! (Демо-режим)`);
+        showNotification('feed', 'success', `Добро пожаловать, ${currentUser.displayName}!`);
     };
     
     document.getElementById('googleSignInBtn').onclick = async () => {
@@ -969,7 +1047,8 @@
         if (unsubscribePrivateMessages) unsubscribePrivateMessages();
         updateUIForAuth(null);
         document.getElementById('privateInputArea').style.display = 'none';
-        document.getElementById('chatWithName').innerHTML = '🔒 Требуется вход';
+        document.getElementById('chatWithName').innerHTML = 'Выберите чат';
+        document.getElementById('chatStatus').innerHTML = 'Нажмите на собеседника';
     };
     
     document.getElementById('switchAccountBtn').onclick = async () => {
@@ -1009,14 +1088,11 @@
                 updateUIForAuth(user);
             }
         });
-    } else {
-        console.warn("Auth не инициализирован, используйте демо-вход");
-        document.getElementById('authStatus').innerHTML = '⚠️ Демо-режим доступен';
     }
     
     if (feedPostsRef) loadFeed();
     
-    console.log('🌊 DarkWave Chat запущен! Используйте демо-вход если Google не работает');
+    console.log('🌊 WaveChat - WhatsApp стиль');
 </script>
 </body>
 </html>
