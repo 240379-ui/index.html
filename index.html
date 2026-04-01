@@ -3,200 +3,170 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Облачное приложение с фото (ImgBB)</title>
+    <title>WhatsApp Clone (Firebase + ImgBB)</title>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f4f7f6; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { width: 100%; max-width: 500px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
-
-        /* Блок авторизации */
-        .auth-bar { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .user-avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #007bff; }
-
-        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; }
-        input[type="file"] { padding: 10px; border: 1px dashed #bbb; background: #fafafa; cursor: pointer; margin-top: 10px; }
+        body { font-family: 'Inter', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
         
-        button { background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: 600; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        .logout-btn { background: #ff4757; padding: 8px 15px; width: auto; font-size: 14px; }
+        /* Авторизация */
+        .header { background: #075e54; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-info img { width: 35px; height: 35px; border-radius: 50%; }
 
-        /* Стили постов */
-        .post { background: #fff; border: 1px solid #eaeaea; padding: 15px; margin-top: 15px; border-radius: 8px; width: 100%; max-width: 500px; display: flex; flex-direction: column; }
-        .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .post-avatar { width: 30px; height: 30px; border-radius: 50%; }
+        /* Контейнер чата */
+        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
         
-        /* Стили для картинки в посте */
-        .post-image { width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; margin: 10px 0; border: 1px solid #eee; }
+        /* Пузыри сообщений */
+        .msg { max-width: 70%; padding: 8px 12px; border-radius: 8px; position: relative; font-size: 14px; line-height: 1.4; }
+        .msg.sent { align-self: flex-end; background: #dcf8c6; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .msg.received { align-self: flex-start; background: white; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .msg img { width: 100%; border-radius: 5px; margin-top: 5px; }
+        .msg .time { font-size: 10px; color: #999; display: block; text-align: right; margin-top: 4px; }
+
+        /* Панель ввода */
+        .input-area { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; align-items: center; }
+        input[type="text"], input[type="email"] { flex: 1; padding: 10px; border: none; border-radius: 20px; outline: none; }
+        .btn-send { background: #128c7e; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
         
-        .like-btn { cursor: pointer; border: none; background: #f8f9fa; padding: 5px 12px; border-radius: 20px; margin-top: 10px; transition: 0.2s; align-self: flex-start; }
-        .like-btn:hover { background: #e9ecef; }
-        .time { font-size: 11px; color: #999; margin-left: auto; }
+        #auth-screen { position: fixed; inset: 0; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
     </style>
 </head>
 <body>
 
-<div id="authSection" class="container" style="text-align: center;">
-    <button id="loginBtn">Войти через Google</button>
-    <div id="userInfo" style="display: none;" class="auth-bar">
-        <img id="userPhoto" class="user-avatar" src="" alt="Avatar">
-        <span id="userName" style="font-weight: bold;"></span>
-        <button id="logoutBtn" class="logout-btn">Выйти</button>
+<div id="auth-screen">
+    <h2>WhatsApp Web Clone</h2>
+    <button id="loginBtn" style="padding: 15px 30px; background: #25d366; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Войти через Google</button>
+</div>
+
+<div class="header">
+    <div class="user-info">
+        <img id="myPhoto" src="" alt="">
+        <span id="myName">Чат</span>
     </div>
+    <button id="logoutBtn" style="background:none; border:1px solid white; color:white; cursor:pointer; padding:5px;">Выйти</button>
 </div>
 
-<div id="messageForm" class="container" style="display: none;">
-    <h3>Создать запись</h3>
-    <input type="text" id="name" placeholder="Имя профиля" readonly>
-    <input type="email" id="email" placeholder="Ваш Email" readonly>
-    <textarea id="content" placeholder="Что у вас нового?"></textarea>
-    
-    <label style="font-size: 13px; color: #666; display: block; margin-top: 10px;">Прикрепить фото (необязательно):</label>
-    <input type="file" id="imageInput" accept="image/*">
-    
-    <button id="mainBtn">Опубликовать в облако</button>
+<div style="background: #eee; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #ddd;">
+    <input type="email" id="receiverEmail" placeholder="Email получателя (кого нет в чате?)">
+    <button onclick="startChat()" style="background:#075e54; color:white; border:none; padding:0 15px; border-radius:5px;">Найти</button>
 </div>
 
-<div id="feed" style="width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 15px;"></div>
+<div id="chat-container">
+    </div>
+
+<div class="input-area" id="input-zone" style="display: none;">
+    <input type="file" id="fileInput" accept="image/*" style="width: 40px; overflow: hidden;">
+    <input type="text" id="msgInput" placeholder="Введите сообщение">
+    <button class="btn-send" id="sendBtn">➤</button>
+</div>
 
 <script type="module">
-    // Импорт SDK Firebase через CDN (Storage удален)
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, updateDoc, doc, increment } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
-    // Ваша конфигурация
     const firebaseConfig = {
         apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
         authDomain: "database-375f4.firebaseapp.com",
         projectId: "database-375f4",
         storageBucket: "database-375f4.firebasestorage.app",
         messagingSenderId: "155181454067",
-        appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86",
-        measurementId: "G-TB3G4KSQ8S"
+        appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86"
     };
-
-    // Ваш API-ключ ImgBB
-    const imgbbKey = "f7dc2e47cafbeb566657f257117c4ef0";
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
+    const imgbbKey = "f7dc2e47cafbeb566657f257117c4ef0";
 
-    const loginBtn = document.getElementById('loginBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const userInfo = document.getElementById('userInfo');
-    const messageForm = document.getElementById('messageForm');
-    const feed = document.getElementById('feed');
-    const mainBtn = document.getElementById('mainBtn');
+    let currentChatId = null;
+    let unsubscribe = null;
 
-    // --- АВТОРИЗАЦИЯ ---
-    loginBtn.onclick = () => signInWithPopup(auth, provider);
-    logoutBtn.onclick = () => signOut(auth);
+    // Авторизация
+    document.getElementById('loginBtn').onclick = () => signInWithPopup(auth, provider);
+    document.getElementById('logoutBtn').onclick = () => signOut(auth);
 
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            loginBtn.style.display = 'none';
-            userInfo.style.display = 'flex';
-            messageForm.style.display = 'block';
-            document.getElementById('userName').innerText = user.displayName;
-            document.getElementById('userPhoto').src = user.photoURL;
-            document.getElementById('name').value = user.displayName;
-            document.getElementById('email').value = user.email;
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('myPhoto').src = user.photoURL;
+            document.getElementById('myName').innerText = user.displayName;
         } else {
-            loginBtn.style.display = 'block';
-            userInfo.style.display = 'none';
-            messageForm.style.display = 'none';
+            document.getElementById('auth-screen').style.display = 'flex';
         }
     });
 
-    // --- ЛАЙКИ ---
-    window.processLike = async (id) => {
-        await updateDoc(doc(db, "requests", id), { likes: increment(1) });
+    // Функция создания ID чата
+    window.startChat = () => {
+        const receiver = document.getElementById('receiverEmail').value.trim();
+        if (!receiver) return alert("Введите Email!");
+        const myEmail = auth.currentUser.email;
+        
+        // Сортируем емейлы, чтобы ID был одинаковым для обоих участников
+        currentChatId = [myEmail, receiver].sort().join("_").replace(/\./g, ",");
+        
+        document.getElementById('input-zone').style.display = 'flex';
+        loadMessages(currentChatId);
     };
 
-    // --- ПУБЛИКАЦИЯ ---
-    mainBtn.onclick = async () => {
-        const content = document.getElementById('content').value;
-        const fileInput = document.getElementById('imageInput');
-        const file = fileInput.files[0];
+    // Загрузка сообщений
+    function loadMessages(chatId) {
+        if (unsubscribe) unsubscribe(); // Отписываемся от старого чата
         
-        if (!content && !file) return alert("Заполните текст или выберите фото!");
-        
-        mainBtn.disabled = true;
-        mainBtn.innerText = "Загрузка фото на ImgBB...";
+        const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
+        unsubscribe = onSnapshot(q, (snapshot) => {
+            const container = document.getElementById('chat-container');
+            container.innerHTML = "";
+            snapshot.forEach(doc => {
+                const d = doc.data();
+                const type = d.sender === auth.currentUser.email ? 'sent' : 'received';
+                const img = d.image ? `<img src="${d.image}">` : "";
+                
+                container.innerHTML += `
+                    <div class="msg ${type}">
+                        ${d.text}
+                        ${img}
+                        <span class="time">${d.timestamp?.toDate().toLocaleTimeString() || "..."}</span>
+                    </div>
+                `;
+            });
+            container.scrollTop = container.scrollHeight;
+        });
+    }
+
+    // Отправка
+    document.getElementById('sendBtn').onclick = async () => {
+        const text = document.getElementById('msgInput').value;
+        const file = document.getElementById('fileInput').files[0];
+        if (!text && !file) return;
 
         let imageUrl = null;
+        document.getElementById('sendBtn').disabled = true;
 
         try {
-            // ЗАГРУЗКА НА IMGBB (если файл выбран)
             if (file) {
-                const formData = new FormData();
-                formData.append("image", file);
-
-                const response = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
-                    method: "POST",
-                    body: formData
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    imageUrl = result.data.url;
-                    console.log("Фото загружено на ImgBB:", imageUrl);
-                } else {
-                    throw new Error("Ошибка ImgBB: " + result.error.message);
-                }
+                const fd = new FormData();
+                fd.append("image", file);
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method: "POST", body: fd });
+                const json = await res.json();
+                imageUrl = json.data.url;
             }
 
-            // СОХРАНЕНИЕ ССЫЛКИ В FIRESTORE
-            mainBtn.innerText = "Публикация в базу...";
-            await addDoc(collection(db, "requests"), {
-                name: auth.currentUser.displayName,
-                email: auth.currentUser.email,
-                photo: auth.currentUser.photoURL,
-                text: content,
-                imageUrl: imageUrl, // Ссылка на ImgBB
-                likes: 0,
+            await addDoc(collection(db, "chats", currentChatId, "messages"), {
+                sender: auth.currentUser.email,
+                text: text,
+                image: imageUrl,
                 timestamp: serverTimestamp()
             });
 
-            document.getElementById('content').value = "";
-            fileInput.value = "";
-            alert("Опубликовано!");
+            document.getElementById('msgInput').value = "";
+            document.getElementById('fileInput').value = "";
         } catch (e) {
-            console.error("Ошибка:", e);
             alert("Ошибка: " + e.message);
         } finally {
-            mainBtn.disabled = false;
-            mainBtn.innerText = "Опубликовать в облако";
+            document.getElementById('sendBtn').disabled = false;
         }
     };
-
-    // --- ОБНОВЛЕНИЕ ЛЕНТЫ ---
-    const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
-    onSnapshot(q, (snapshot) => {
-        feed.innerHTML = "";
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            const imgTag = data.imageUrl ? `<img src="${data.imageUrl}" class="post-image" alt="Post content">` : "";
-            
-            feed.innerHTML += `
-                <div class="post">
-                    <div class="post-header">
-                        <img src="${data.photo || 'https://via.placeholder.com/30'}" class="post-avatar">
-                        <b>${data.name}</b>
-                        <span class="time">${data.timestamp?.toDate().toLocaleTimeString() || '...'}</span>
-                    </div>
-                    <p style="margin: 5px 0;">${data.text || ""}</p>
-                    ${imgTag}
-                    <button class="like-btn" onclick="processLike('${doc.id}')">👍 ${data.likes || 0}</button>
-                </div>
-            `;
-        });
-    });
-
-    window.db = db;
 </script>
 </body>
 </html>
