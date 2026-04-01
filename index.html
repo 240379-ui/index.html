@@ -1,195 +1,103 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Clone v2</title>
-    <style>
-        :root { --whatsapp-green: #075e54; --whatsapp-bg: #e5ddd5; --my-msg: #dcf8c6; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; background: #f0f2f5; }
-        
-        /* Экран входа */
-        #auth-gate { position: fixed; inset: 0; background: white; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .btn-login { padding: 15px 30px; background: #4285f4; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
+  <meta charset="UTF-8">
+  <title>Мессенджер на Firebase</title>
+  <script type="module">
+    // Импорт Firebase SDK
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        /* Боковая панель */
-        .sidebar { width: 350px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
-        .sidebar-header { background: #ededed; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; }
-        .my-avatar { width: 40px; height: 40px; border-radius: 50%; background: #ccc; }
-        .search-area { padding: 10px; background: #f6f6f6; border-bottom: 1px solid #ddd; }
-        .search-area input { width: 100%; padding: 8px; border-radius: 20px; border: 1px solid #ddd; outline: none; box-sizing: border-box; }
-        
-        .contacts-list { flex: 1; overflow-y: auto; }
-        .contact-item { padding: 15px; border-bottom: 1px solid #f2f2f2; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
-        .contact-item:hover { background: #f5f5f5; }
-        .contact-item b { font-size: 14px; color: #333; }
-
-        /* Основной чат */
-        .chat-window { flex: 1; display: flex; flex-direction: column; background: var(--whatsapp-bg); }
-        .chat-header { background: #ededed; padding: 10px 16px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #ddd; height: 59px; box-sizing: border-box; }
-        
-        #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
-        .bubble { max-width: 65%; padding: 8px 12px; border-radius: 8px; font-size: 14px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); position: relative; }
-        .bubble.sent { align-self: flex-end; background: var(--my-msg); }
-        .bubble.received { align-self: flex-start; background: white; }
-        
-        .chat-footer { background: #f0f0f0; padding: 10px; display: flex; align-items: center; gap: 10px; }
-        .chat-footer input { flex: 1; padding: 10px 15px; border-radius: 20px; border: none; outline: none; }
-        .btn-send { background: var(--whatsapp-green); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
-
-        .btn-logout { font-size: 12px; color: #ff4757; background: none; border: 1px solid #ff4757; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
-    </style>
-</head>
-<body>
-
-<div id="auth-gate">
-    <h2 style="color: #075e54;">WhatsApp Web</h2>
-    <button class="btn-login" onclick="handleLogin()">Войти через Google</button>
-</div>
-
-<div class="sidebar">
-    <div class="sidebar-header">
-        <img id="userPhoto" class="my-avatar" src="" alt="">
-        <button class="btn-logout" onclick="handleLogout()">Выйти</button>
-    </div>
-    <div class="search-area">
-        <input type="email" id="newChatEmail" placeholder="Найти по Email..." onkeypress="if(event.key==='Enter') startNewChat()">
-    </div>
-    <div id="contacts" class="contacts-list">
-        </div>
-</div>
-
-<div class="chat-window">
-    <div class="chat-header">
-        <b id="chatTitle">Выберите чат</b>
-    </div>
-    <div id="messages">
-        <div style="text-align: center; color: #888; margin-top: 50px;">Здесь будет ваша переписка</div>
-    </div>
-    <div class="chat-footer" id="inputArea" style="visibility: hidden;">
-        <input type="file" id="fileBtn" accept="image/*" style="width: 100px;">
-        <input type="text" id="msgInput" placeholder="Введите сообщение..." onkeypress="if(event.key==='Enter') sendMessage()">
-        <button class="btn-send" onclick="sendMessage()">➤</button>
-    </div>
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-
-    // --- КОНФИГУРАЦИЯ (Проверьте эти данные в консоли Firebase!) ---
+    // Конфигурация Firebase
     const firebaseConfig = {
-        apiKey: "AIzaSyDgUXROTXafc_qA-rpdSzKn33265IfxsHU",
-        authDomain: "qazaq-a072e.firebaseapp.com",
-        projectId: "qazaq-a072e",
-        storageBucket: "qazaq-a072e.firebasestorage.app",
-        messagingSenderId: "47025480090",
-        appId: "1:47025480090:web:3dd74ff29bc0c149f39a23"
+      apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
+      authDomain: "database-375f4.firebaseapp.com",
+      projectId: "database-375f4",
+      storageBucket: "database-375f4.firebasestorage.app",
+      messagingSenderId: "155181454067",
+      appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86",
+      measurementId: "G-TB3G4KSQ8S"
     };
 
+    // Инициализация
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
-    const imgbbKey = "f7dc2e47cafbeb566657f257117c4ef0";
+    const db = getFirestore(app);
 
-    let activeChatId = null;
-    let unsub = null;
+    // Элементы DOM
+    const loginBtn = document.getElementById("login");
+    const logoutBtn = document.getElementById("logout");
+    const chatBox = document.getElementById("chat");
+    const form = document.getElementById("form");
+    const input = document.getElementById("message");
 
-    // Сделаем функции доступными для HTML кнопок
-    window.handleLogin = () => signInWithPopup(auth, provider);
-    window.handleLogout = () => signOut(auth).then(() => location.reload());
+    // Авторизация
+    loginBtn.onclick = () => signInWithPopup(auth, provider);
+    logoutBtn.onclick = () => signOut(auth);
 
-    // Отслеживание входа
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            document.getElementById('auth-gate').style.display = 'none';
-            document.getElementById('userPhoto').src = user.photoURL;
-            // Сохраняем пользователя в список контактов
-            setDoc(doc(db, "users", user.email.replace(/\./g, ",")), {
-                name: user.displayName,
-                email: user.email,
-                photo: user.photoURL
-            });
-            loadContacts();
-        } else {
-            document.getElementById('auth-gate').style.display = 'flex';
-        }
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "inline-block";
+        form.style.display = "flex";
+        loadMessages();
+      } else {
+        loginBtn.style.display = "inline-block";
+        logoutBtn.style.display = "none";
+        form.style.display = "none";
+        chatBox.innerHTML = "";
+      }
     });
 
-    // Загрузка списка всех пользователей (кому можно написать)
-    function loadContacts() {
-        onSnapshot(collection(db, "users"), (snap) => {
-            const list = document.getElementById('contacts');
-            list.innerHTML = "";
-            snap.forEach(doc => {
-                const u = doc.data();
-                if (u.email === auth.currentUser.email) return;
-                list.innerHTML += `
-                    <div class="contact-item" onclick="openChat('${u.email}')">
-                        <img src="${u.photo}" style="width:30px; height:30px; border-radius:50%">
-                        <b>${u.name}</b>
-                    </div>
-                `;
-            });
-        });
-    }
-
-    // Открытие чата
-    window.openChat = (targetEmail) => {
-        activeChatId = [auth.currentUser.email, targetEmail].sort().join("_").replace(/\./g, ",");
-        document.getElementById('chatTitle').innerText = targetEmail;
-        document.getElementById('inputArea').style.visibility = 'visible';
-        
-        if (unsub) unsub();
-        const q = query(collection(db, "chats", activeChatId, "messages"), orderBy("timestamp", "asc"));
-        unsub = onSnapshot(q, (snap) => {
-            const box = document.getElementById('messages');
-            box.innerHTML = "";
-            snap.forEach(d => {
-                const m = d.data();
-                const isMe = m.sender === auth.currentUser.email;
-                box.innerHTML += `
-                    <div class="bubble ${isMe ? 'sent' : 'received'}">
-                        ${m.text ? `<div>${m.text}</div>` : ""}
-                        ${m.img ? `<img src="${m.img}" style="width:100%; margin-top:5px;">` : ""}
-                    </div>
-                `;
-            });
-            box.scrollTop = box.scrollHeight;
-        });
-    };
-
-    window.startNewChat = () => {
-        const email = document.getElementById('newChatEmail').value.trim().toLowerCase();
-        if (email) openChat(email);
-    };
-
     // Отправка сообщения
-    window.sendMessage = async () => {
-        const input = document.getElementById('msgInput');
-        const file = document.getElementById('fileBtn').files[0];
-        const text = input.value;
-        if (!text && !file) return;
-
-        let imgUrl = null;
-        if (file) {
-            const fd = new FormData(); fd.append("image", file);
-            const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {method:"POST", body:fd});
-            const json = await res.json();
-            imgUrl = json.data.url;
-        }
-
-        await addDoc(collection(db, "chats", activeChatId, "messages"), {
-            sender: auth.currentUser.email,
-            text: text,
-            img: imgUrl,
-            timestamp: serverTimestamp()
-        });
-        input.value = "";
-        document.getElementById('fileBtn').value = "";
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      if (input.value.trim() === "") return;
+      await addDoc(collection(db, "messages"), {
+        text: input.value,
+        uid: auth.currentUser.uid,
+        displayName: auth.currentUser.displayName,
+        createdAt: serverTimestamp()
+      });
+      input.value = "";
     };
-</script>
+
+    // Загрузка сообщений
+    function loadMessages() {
+      const q = query(collection(db, "messages"), orderBy("createdAt"));
+      onSnapshot(q, snapshot => {
+        chatBox.innerHTML = "";
+        snapshot.forEach(doc => {
+          const msg = doc.data();
+          const div = document.createElement("div");
+          div.className = msg.uid === auth.currentUser.uid ? "own" : "other";
+          div.innerHTML = `<strong>${msg.displayName}:</strong> ${msg.text}`;
+          chatBox.appendChild(div);
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+    }
+  </script>
+  <style>
+    body { font-family: sans-serif; text-align: center; }
+    #chat { border: 1px solid #ccc; height: 300px; width: 400px; margin: 10px auto; overflow-y: scroll; padding: 10px; }
+    .own { text-align: right; background: #007bff; color: white; margin: 5px; padding: 8px; border-radius: 12px; display: inline-block; }
+    .other { text-align: left; background: #e5e5ea; color: black; margin: 5px; padding: 8px; border-radius: 12px; display: inline-block; }
+    #form { margin-top: 10px; display: none; justify-content: center; }
+    #message { width: 300px; padding: 8px; }
+    button { padding: 8px 12px; margin: 5px; }
+  </style>
+</head>
+<body>
+  <h2>🔥 Мессенджер на Firebase</h2>
+  <button id="login">Войти через Google</button>
+  <button id="logout" style="display:none;">Выйти</button>
+  <div id="chat"></div>
+  <form id="form">
+    <input id="message" placeholder="Ваше сообщение..." />
+    <button type="submit">➤</button>
+  </form>
 </body>
 </html>
