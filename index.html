@@ -3,187 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Messenger</title>
-    <style>
-        :root { --main-green: #075e54; --light-green: #dcf8c6; --bg-gray: #e5ddd5; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; height: 100vh; background: #f0f2f5; }
-        
-        /* Боковая панель */
-        .sidebar { width: 350px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
-        .sidebar-header { background: #ededed; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; }
-        .user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-        .search-box { padding: 8px; background: #f6f6f6; }
-        .search-box input { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ddd; outline: none; box-sizing: border-box; }
-        
-        /* Основное окно чата */
-        .main-chat { flex: 1; display: flex; flex-direction: column; background: var(--bg-gray); position: relative; }
-        .chat-header { background: #ededed; padding: 10px 16px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #ddd; }
-        #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
-
-        /* Пузыри сообщений */
-        .msg { max-width: 65%; padding: 8px 12px; border-radius: 8px; font-size: 14px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
-        .msg.sent { align-self: flex-end; background: var(--light-green); }
-        .msg.received { align-self: flex-start; background: white; }
-        .msg img { width: 100%; border-radius: 4px; margin-top: 5px; }
-        .msg-time { font-size: 10px; color: #888; text-align: right; margin-top: 4px; display: block; }
-
-        /* Ввод сообщения */
-        .footer { background: #f0f0f0; padding: 10px; display: flex; align-items: center; gap: 10px; }
-        .footer input[type="text"] { flex: 1; padding: 10px 15px; border-radius: 20px; border: none; outline: none; }
-        .btn-send { background: var(--main-green); color: white; border: none; padding: 10px 15px; border-radius: 50%; cursor: pointer; }
-
-        /* Экран входа */
-        #auth-overlay { position: fixed; inset: 0; background: white; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .login-btn { padding: 15px 30px; background: #4285f4; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-    </style>
+    <title>Private Messenger</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div id="auth-overlay">
-    <h2>Добро пожаловать в мессенджер</h2>
-    <button class="login-btn" id="loginBtn">Войти через Google</button>
-</div>
-
-<div class="sidebar">
-    <div class="sidebar-header">
-        <img id="myAvatar" class="user-avatar" src="" alt="">
-        <button id="logoutBtn" style="border:none; background:none; color:#007bff; cursor:pointer;">Выйти</button>
-    </div>
-    <div class="search-box">
-        <input type="email" id="targetEmail" placeholder="Начать чат (введите Email)...">
-        <button onclick="openChat()" style="width:100%; margin-top:5px; background:#25d366; color:white; border:none; padding:5px; border-radius:5px; cursor:pointer;">Найти собеседника</button>
-    </div>
-    <div id="contacts-list" style="overflow-y: auto;">
+    <div class="container">
+        <!-- Авторизация -->
+        <div id="authSection" class="auth-section">
+            <h2>Вход в мессенджер</h2>
+            <div class="auth-tabs">
+                <button class="tab-btn active" onclick="switchTab('login')">Вход</button>
+                <button class="tab-btn" onclick="switchTab('register')">Регистрация</button>
+            </div>
+            
+            <div id="loginForm" class="auth-form active">
+                <input type="email" id="loginEmail" placeholder="Email" class="input-field">
+                <input type="password" id="loginPassword" placeholder="Пароль" class="input-field">
+                <button onclick="login()" class="btn-primary">Войти</button>
+            </div>
+            
+            <div id="registerForm" class="auth-form">
+                <input type="text" id="regName" placeholder="Имя" class="input-field">
+                <input type="email" id="regEmail" placeholder="Email" class="input-field">
+                <input type="password" id="regPassword" placeholder="Пароль" class="input-field">
+                <button onclick="register()" class="btn-primary">Зарегистрироваться</button>
+            </div>
         </div>
-</div>
 
-<div class="main-chat">
-    <div class="chat-header">
-        <div id="chatWithTitle">Выберите чат, чтобы начать общение</div>
-    </div>
-    
-    <div id="messages"></div>
-
-    <div class="footer" id="inputZone" style="display: none;">
-        <input type="file" id="photoInput" accept="image/*" style="width: 100px;">
-        <input type="text" id="msgInput" placeholder="Введите сообщение...">
-        <button class="btn-send" id="sendBtn">➤</button>
-    </div>
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-
-    // Ваша конфигурация из файлов
-    const firebaseConfig = {
-        apiKey: "AIzaSyDgUXROTXafc_qA-rpdSzKn33265IfxsHU",
-        authDomain: "qazaq-a072e.firebaseapp.com",
-        projectId: "qazaq-a072e",
-        storageBucket: "qazaq-a072e.firebasestorage.app",
-        messagingSenderId: "47025480090",
-        appId: "1:47025480090:web:3dd74ff29bc0c149f39a23",
-        measurementId: "G-9TE97NWMB9"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
-    const imgbbKey = "f7dc2e47cafbeb566657f257117c4ef0";
-
-    let activeChatId = null;
-    let unsubMessages = null;
-
-    // --- Авторизация ---
-    document.getElementById('loginBtn').onclick = () => signInWithPopup(auth, provider);
-    document.getElementById('logoutBtn').onclick = () => signOut(auth);
-
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            document.getElementById('auth-overlay').style.display = 'none';
-            document.getElementById('myAvatar').src = user.photoURL;
-        } else {
-            document.getElementById('auth-overlay').style.display = 'flex';
-        }
-    });
-
-    // --- Логика чата ---
-    window.openChat = () => {
-        const email = document.getElementById('targetEmail').value.trim().toLowerCase();
-        if (!email) return alert("Введите Email собеседника");
-        if (email === auth.currentUser.email) return alert("Нельзя писать самому себе");
-
-        // Генерируем уникальный ID для пары
-        activeChatId = [auth.currentUser.email, email].sort().join("_").replace(/\./g, ",");
-        
-        document.getElementById('chatWithTitle').innerText = `Чат с: ${email}`;
-        document.getElementById('inputZone').style.display = 'flex';
-        
-        subscribeMessages(activeChatId);
-    };
-
-    function subscribeMessages(chatId) {
-        if (unsubMessages) unsubMessages();
-        
-        const q = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc"));
-        unsubMessages = onSnapshot(q, (snapshot) => {
-            const container = document.getElementById('messages');
-            container.innerHTML = "";
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const isMe = data.sender === auth.currentUser.email;
-                const time = data.timestamp?.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) || "...";
-                
-                container.innerHTML += `
-                    <div class="msg ${isMe ? 'sent' : 'received'}">
-                        ${data.text ? `<div>${data.text}</div>` : ""}
-                        ${data.image ? `<img src="${data.image}">` : ""}
-                        <span class="msg-time">${time}</span>
+        <!-- Основной интерфейс мессенджера -->
+        <div id="messengerSection" style="display: none;">
+            <div class="messenger-header">
+                <div class="user-info">
+                    <span id="currentUserName"></span>
+                    <button onclick="logout()" class="btn-logout">Выйти</button>
+                </div>
+            </div>
+            
+            <div class="messenger-layout">
+                <!-- Список чатов -->
+                <div class="chats-list">
+                    <div class="search-box">
+                        <input type="text" id="searchUsers" placeholder="Поиск пользователей..." 
+                               onkeyup="searchUsers()" class="input-field">
                     </div>
-                `;
-            });
-            container.scrollTop = container.scrollHeight;
-        });
-    }
+                    <div id="usersList" class="users-list"></div>
+                </div>
+                
+                <!-- Область сообщений -->
+                <div class="chat-area">
+                    <div id="chatHeader" class="chat-header">
+                        <h3 id="selectedUserName">Выберите чат</h3>
+                    </div>
+                    <div id="messagesContainer" class="messages-container"></div>
+                    <div class="message-input-area">
+                        <textarea id="messageInput" placeholder="Введите сообщение..." 
+                                  class="message-input" rows="3"></textarea>
+                        <button onclick="sendMessage()" class="btn-send">Отправить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    document.getElementById('sendBtn').onclick = async () => {
-        const text = document.getElementById('msgInput').value;
-        const fileInput = document.getElementById('photoInput');
-        const file = fileInput.files[0];
-
-        if (!text && !file) return;
-
-        document.getElementById('sendBtn').disabled = true;
-        let imageUrl = null;
-
-        try {
-            // Загрузка на ImgBB
-            if (file) {
-                const fd = new FormData();
-                fd.append("image", file);
-                const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method: "POST", body: fd });
-                const json = await res.json();
-                imageUrl = json.data.url;
-            }
-
-            // Запись в Firebase
-            await addDoc(collection(db, "chats", activeChatId, "messages"), {
-                sender: auth.currentUser.email,
-                text: text,
-                image: imageUrl,
-                timestamp: serverTimestamp()
-            });
-
-            document.getElementById('msgInput').value = "";
-            fileInput.value = "";
-        } catch (e) {
-            alert("Ошибка при отправке: " + e.message);
-        } finally {
-            document.getElementById('sendBtn').disabled = false;
-        }
-    };
-</script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
