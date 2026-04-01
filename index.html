@@ -2,77 +2,90 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Мессенджер на Firebase</title>
+  <title>Личные сообщения</title>
   <script type="module">
-    // Импорт Firebase SDK
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // Конфигурация Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
       authDomain: "database-375f4.firebaseapp.com",
       projectId: "database-375f4",
-      storageBucket: "database-375f4.firebasestorage.app",
+      storageBucket: "database-375f4.appspot.com",
       messagingSenderId: "155181454067",
       appId: "1:155181454067:web:a3b268de7a2aa8ec48dd86",
       measurementId: "G-TB3G4KSQ8S"
     };
 
-    // Инициализация
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
     const db = getFirestore(app);
 
-    // Элементы DOM
     const loginBtn = document.getElementById("login");
     const logoutBtn = document.getElementById("logout");
     const chatBox = document.getElementById("chat");
     const form = document.getElementById("form");
     const input = document.getElementById("message");
+    const userSelect = document.getElementById("userSelect");
 
-    // Авторизация
     loginBtn.onclick = () => signInWithPopup(auth, provider);
     logoutBtn.onclick = () => signOut(auth);
 
+    let currentUser = null;
+    let currentChatWith = null;
+
     onAuthStateChanged(auth, user => {
       if (user) {
+        currentUser = user;
         loginBtn.style.display = "none";
         logoutBtn.style.display = "inline-block";
         form.style.display = "flex";
-        loadMessages();
+        userSelect.style.display = "inline-block";
       } else {
+        currentUser = null;
         loginBtn.style.display = "inline-block";
         logoutBtn.style.display = "none";
         form.style.display = "none";
+        userSelect.style.display = "none";
         chatBox.innerHTML = "";
       }
     });
 
-    // Отправка сообщения
+    // Выбор собеседника
+    userSelect.onchange = () => {
+      currentChatWith = userSelect.value;
+      loadMessages();
+    };
+
     form.onsubmit = async (e) => {
       e.preventDefault();
-      if (input.value.trim() === "") return;
+      if (!input.value.trim() || !currentChatWith) return;
       await addDoc(collection(db, "messages"), {
         text: input.value,
-        uid: auth.currentUser.uid,
-        displayName: auth.currentUser.displayName,
+        from: currentUser.uid,
+        to: currentChatWith,
+        displayName: currentUser.displayName,
         createdAt: serverTimestamp()
       });
       input.value = "";
     };
 
-    // Загрузка сообщений
     function loadMessages() {
-      const q = query(collection(db, "messages"), orderBy("createdAt"));
+      if (!currentChatWith) return;
+      const q = query(
+        collection(db, "messages"),
+        where("from", "in", [currentUser.uid, currentChatWith]),
+        where("to", "in", [currentUser.uid, currentChatWith]),
+        orderBy("createdAt")
+      );
       onSnapshot(q, snapshot => {
         chatBox.innerHTML = "";
         snapshot.forEach(doc => {
           const msg = doc.data();
           const div = document.createElement("div");
-          div.className = msg.uid === auth.currentUser.uid ? "own" : "other";
+          div.className = msg.from === currentUser.uid ? "own" : "other";
           div.innerHTML = `<strong>${msg.displayName}:</strong> ${msg.text}`;
           chatBox.appendChild(div);
         });
@@ -88,12 +101,19 @@
     #form { margin-top: 10px; display: none; justify-content: center; }
     #message { width: 300px; padding: 8px; }
     button { padding: 8px 12px; margin: 5px; }
+    #userSelect { margin: 10px; display: none; }
   </style>
 </head>
 <body>
-  <h2>🔥 Мессенджер на Firebase</h2>
+  <h2>🔥 Личные сообщения</h2>
   <button id="login">Войти через Google</button>
   <button id="logout" style="display:none;">Выйти</button>
+  <select id="userSelect">
+    <option value="">-- Выберите собеседника --</option>
+    <!-- Здесь можно динамически подгружать список пользователей -->
+    <option value="USER_UID_1">Пользователь 1</option>
+    <option value="USER_UID_2">Пользователь 2</option>
+  </select>
   <div id="chat"></div>
   <form id="form">
     <input id="message" placeholder="Ваше сообщение..." />
