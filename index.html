@@ -51,10 +51,25 @@
 </div>
 
 <script type="module">
+    // 1. Обязательные импорты (без них будут ошибки 'is not defined')
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { 
+        getAuth, 
+        signInWithPopup, 
+        GoogleAuthProvider, 
+        onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { 
+        getFirestore, 
+        collection, 
+        addDoc, 
+        query, 
+        orderBy, 
+        onSnapshot, 
+        serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
+    // 2. Ваша конфигурация (Project: qazaq-a072e)
     const firebaseConfig = {
         apiKey: "AIzaSyDgUXROTXafc_qA-rpdSzKn33265IfxsHU",
         authDomain: "qazaq-a072e.firebaseapp.com",
@@ -64,30 +79,44 @@
         appId: "1:47025480090:web:3dd74ff29bc0c149f39a23"
     };
 
+    // 3. Инициализация сервисов
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
     const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
     const imgbbKey = "f7dc2e47cafbeb566657f257117c4ef0";
 
     let activeChatId = null;
     let unsub = null;
 
-    document.getElementById('loginBtn').onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
+    // --- ФУНКЦИЯ ВХОДА ---
+    document.getElementById('loginBtn').onclick = async () => {
+        try {
+            // Теперь эта функция определена благодаря импорту выше
+            await signInWithPopup(auth, provider);
+        } catch (error) {
+            console.error("Ошибка входа:", error);
+            alert("Ошибка входа: " + error.message);
+        }
+    };
 
+    // Отслеживание состояния входа
     onAuthStateChanged(auth, (user) => {
+        const gate = document.getElementById('auth-gate');
         if (user) {
-            document.getElementById('auth-gate').style.display = 'none';
-            document.getElementById('status').innerText = "Вы вошли как: " + user.email;
+            if (gate) gate.style.display = 'none';
+            console.log("Авторизован:", user.email);
+        } else {
+            if (gate) gate.style.display = 'flex';
         }
     });
 
+    // --- ЛОГИКА ЧАТА ---
     window.startChat = () => {
         const target = document.getElementById('targetEmail').value.trim().toLowerCase();
-        if (!target || target === auth.currentUser.email) return alert("Введите корректный Email");
+        if (!target || target === auth.currentUser.email) return alert("Введите чужой Email");
 
-        // Генерируем ID: берем два email, сортируем и соединяем (чтобы у обоих был один ID чата)
         activeChatId = [auth.currentUser.email, target].sort().join("_").replace(/\./g, ",");
-        
         document.getElementById('chatHeader').innerText = "Чат с: " + target;
         document.getElementById('inputBar').style.display = 'flex';
         
@@ -98,22 +127,17 @@
         if (unsub) unsub();
         const q = query(collection(db, "chats", activeChatId, "messages"), orderBy("timestamp", "asc"));
         
-        // КЛЮЧ К СИНХРОНИЗАЦИИ: onSnapshot обновляет экран мгновенно при появлении данных в базе
         unsub = onSnapshot(q, (snap) => {
             const box = document.getElementById('messages');
             box.innerHTML = "";
             snap.forEach(doc => {
                 const m = doc.data();
                 const isSent = m.sender === auth.currentUser.email;
-                const time = m.timestamp?.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) || "";
-                
                 box.innerHTML += `
                     <div class="bubble ${isSent ? 'sent' : 'received'}">
-                        ${m.text}
+                        ${m.text || ""}
                         ${m.img ? `<img src="${m.img}">` : ""}
-                        <span class="time">${time}</span>
-                    </div>
-                `;
+                    </div>`;
             });
             box.scrollTop = box.scrollHeight;
         });
@@ -121,25 +145,13 @@
 
     document.getElementById('sendBtn').onclick = async () => {
         const text = document.getElementById('msgText').value;
-        const file = document.getElementById('imgFile').files[0];
-        if (!text && !file) return;
-
-        let url = null;
-        if (file) {
-            const fd = new FormData(); fd.append("image", file);
-            const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {method:"POST", body:fd});
-            const resJ = await res.json(); url = resJ.data.url;
-        }
+        if (!text && !activeChatId) return;
 
         await addDoc(collection(db, "chats", activeChatId, "messages"), {
             sender: auth.currentUser.email,
             text: text,
-            img: url,
             timestamp: serverTimestamp()
         });
         document.getElementById('msgText').value = "";
-        document.getElementById('imgFile').value = "";
     };
 </script>
-</body>
-</html>
