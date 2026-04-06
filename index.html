@@ -2,27 +2,89 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Firebase Example</title>
+  <title>Firebase Firestore Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .container {
+      max-width: 500px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 5px;
+      background-color: #3498db;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    ul {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    li {
+      background: #ecf0f1;
+      margin: 5px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .rules {
+      font-size: 14px;
+      color: #7f8c8d;
+      margin-bottom: 10px;
+    }
+  </style>
 </head>
 <body>
   <h1>Firebase Firestore Demo</h1>
 
-  <h2>Добавить пользователя</h2>
-  <input type="text" id="name" placeholder="Имя">
-  <input type="email" id="email" placeholder="Email">
-  <button id="addUserBtn">Добавить</button>
+  <div class="container">
+    <h2>Добавить пользователя</h2>
+    <p class="rules">Введите имя (не менее 2 символов) и корректный email.</p>
+    <input type="text" id="name" placeholder="Имя">
+    <input type="email" id="email" placeholder="Email">
+    <button id="addUserBtn">Добавить</button>
+  </div>
 
-  <h2>Список пользователей</h2>
-  <button id="getUsersBtn">Показать пользователей</button>
-  <ul id="userList"></ul>
+  <div class="container">
+    <h2>Список пользователей</h2>
+    <button id="getUsersBtn">Показать пользователей</button>
+    <ul id="userList"></ul>
+  </div>
 
   <script type="module">
-    // Import Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-analytics.js";
     import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
-    // Firebase конфигурация
     const firebaseConfig = {
       apiKey: "AIzaSyA1Qy46L7WwYNph62ZuYz32bMP_OeLMNPM",
       authDomain: "database-375f4.firebaseapp.com",
@@ -33,13 +95,20 @@
       measurementId: "G-TB3G4KSQ8S"
     };
 
-    // Инициализация Firebase
     const app = initializeApp(firebaseConfig);
     const analytics = getAnalytics(app);
     const db = getFirestore(app);
 
-    // Функция добавления пользователя
+    // Функция добавления пользователя с проверкой
     async function addUser(name, email) {
+      if (name.length < 2) {
+        alert("Имя должно быть не менее 2 символов!");
+        return;
+      }
+      if (!email.includes("@")) {
+        alert("Введите корректный email!");
+        return;
+      }
       try {
         const docRef = await addDoc(collection(db, "users"), {
           name: name,
@@ -61,9 +130,8 @@
           users.push({ id: doc.id, ...doc.data() });
         });
 
-        // Отображаем список пользователей на странице
         const userList = document.getElementById("userList");
-        userList.innerHTML = ""; // очистка перед добавлением
+        userList.innerHTML = "";
         users.forEach(user => {
           const li = document.createElement("li");
           li.textContent = `ID: ${user.id}, Name: ${user.name}, Email: ${user.email}`;
@@ -74,15 +142,10 @@
       }
     }
 
-    // Кнопки
     document.getElementById("addUserBtn").addEventListener("click", () => {
-      const name = document.getElementById("name").value;
-      const email = document.getElementById("email").value;
-      if (name && email) {
-        addUser(name, email);
-      } else {
-        alert("Введите имя и email!");
-      }
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      addUser(name, email);
     });
 
     document.getElementById("getUsersBtn").addEventListener("click", getUsers);
