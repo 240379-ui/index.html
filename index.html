@@ -3,98 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Управление статусом группы</title>
+    <title>Статус Группы</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333; }
-        .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h3 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 25px; }
-        #myinfo { margin-bottom: 20px; padding: 10px; background: #e8f4fd; border-radius: 8px; font-weight: bold; color: #007bff; text-align: center; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        #myinfo { background: #e7f3ff; color: #1877f2; padding: 10px; border-radius: 8px; font-weight: bold; text-align: center; margin-bottom: 20px; }
         
-        .user-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
-        .user-item:last-child { border-bottom: none; }
-        .status-dot { width: 14px; height: 14px; border-radius: 50%; margin-right: 15px; border: 1px solid rgba(0,0,0,0.1); }
-        .user-details strong { display: block; font-size: 1.1em; }
-        .user-details small { color: #777; font-size: 0.9em; }
-
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; transition: transform 0.1s, opacity 0.2s; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }
+        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; transition: 0.2s; }
         button:active { transform: scale(0.95); }
-        .btn-online { background-color: #28a745; }
-        .btn-busy { background-color: #dc3545; }
-        .btn-away { background-color: #ffc107; color: #333; }
-        .btn-offline { background-color: #6c757d; }
         
-        .error-msg { color: #dc3545; background: #fff1f0; padding: 10px; border-radius: 5px; border: 1px solid #ffa39e; margin-top: 10px; }
+        /* Цвета кнопок для наглядности (в базу они не идут) */
+        .btn-1 { background-color: #42b72a; } 
+        .btn-2 { background-color: #fa3e3e; }
+        .btn-3 { background-color: #f7b125; }
+        .btn-4 { background-color: #8a8d91; }
+
+        .user-item { padding: 12px 0; border-bottom: 1px solid #eee; }
+        .user-item:last-child { border-bottom: none; }
+        strong { font-size: 1.1em; color: #1c1e21; }
+        p { margin: 4px 0 0; color: #606770; font-size: 0.9em; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="myinfo">Подключение...</div>
+<div class="card">
+    <div id="myinfo">Загрузка профиля...</div>
 
     <div class="controls">
-        <button class="btn-online" onclick="changeStatus('На связи', '#28a745')">На связи</button>
-        <button class="btn-busy" onclick="changeStatus('Занят', '#dc3545')">Занят</button>
-        <button class="btn-away" onclick="changeStatus('Отойду', '#ffc107')">Отойду</button>
-        <button class="btn-offline" onclick="changeStatus('Не в сети', '#6c757d')">Оффлайн</button>
+        <button class="btn-1" onclick="changeStatus('На связи')">На связи</button>
+        <button class="btn-2" onclick="changeStatus('Занят')">Занят</button>
+        <button class="btn-3" onclick="changeStatus('Отойду')">Отойду</button>
+        <button class="btn-4" onclick="changeStatus('Не в сети')">Оффлайн</button>
     </div>
 
-    <h3>Список группы:</h3>
-    <div id="grouplist">Загрузка данных...</div>
+    <h3 style="margin-bottom: 15px;">Список участников:</h3>
+    <div id="grouplist">Загрузка списка...</div>
 </div>
 
 <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
+    // Твои настройки
     const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
     const KEY = 'sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA';
     const MY_ID = 'f455f564-7f46-4a23-b6c1-df0c5176a406';
 
     const supabase = createClient(URL, KEY);
 
-    // ИСПРАВЛЕНО: Название таблицы в точности как на скриншоте
-    const TABLE_NAME = 'Profile';
-
-    window.changeStatus = async (text, color) => {
+    // Функция обновления (только поле status)
+    window.changeStatus = async (newStatus) => {
         const { error } = await supabase
-            .from(TABLE_NAME)
-            .update({ status: text, color: color })
+            .from('Profile')
+            .update({ status: newStatus }) // Поле color удалено
             .eq('id', MY_ID);
 
         if (error) {
-            console.error(error);
-            alert("Ошибка: " + error.message);
+            alert("Ошибка при обновлении: " + error.message);
         } else {
             fetchGroup();
         }
     };
 
+    // Функция получения данных
     async function fetchGroup() {
         const { data, error } = await supabase
-            .from(TABLE_NAME)
-            .select('*')
+            .from('Profile')
+            .select('id, username, status')
             .order('username', { ascending: true });
 
-        const listDiv = document.getElementById('grouplist');
-
         if (error) {
-            listDiv.innerHTML = `<div class="error-msg">Ошибка: ${error.message}</div>`;
+            document.getElementById('grouplist').innerHTML = "Ошибка: " + error.message;
             return;
         }
 
+        const listDiv = document.getElementById('grouplist');
         listDiv.innerHTML = data.map(user => `
             <div class="user-item">
-                <div class="status-dot" style="background: ${user.color || '#ccc'}"></div>
-                <div class="user-details">
-                    <strong>${user.username || 'Аноним'}</strong>
-                    <small>${user.status || 'Статус не указан'}</small>
-                </div>
+                <strong>${user.username || 'Без имени'}</strong>
+                <p>${user.status || 'Нет статуса'}</p>
             </div>
         `).join('');
 
         const me = data.find(u => u.id === MY_ID);
         if (me) {
-            document.getElementById('myinfo').innerText = `Вы: ${me.username}`;
+            document.getElementById('myinfo').innerText = `Вы вошли как: ${me.username}`;
         }
     }
 
