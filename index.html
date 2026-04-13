@@ -2,91 +2,340 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Supabase Group List</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Монитор группы</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        .user-item { display: flex; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .status-dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; }
-        #myinfo { font-weight: bold; margin-bottom: 20px; color: #2c3e50; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Карточка профиля */
+        .profile-card {
+            background: white;
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .profile-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .profile-title span {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #myInfo {
+            font-size: 18px;
+            color: #555;
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border-radius: 40px;
+        }
+
+        .status-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .status-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .status-btn:active {
+            transform: translateY(0);
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* Монитор группы */
+        .monitor-card {
+            background: white;
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .monitor-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .group-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            background: #f8f9fa;
+            border-radius: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .user-item:hover {
+            background: #f0f2f5;
+            transform: translateX(4px);
+        }
+
+        .status-dot-big {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .user-info {
+            flex-grow: 1;
+        }
+
+        .username {
+            font-weight: 600;
+            color: #1a1a2e;
+            font-size: 16px;
+        }
+
+        .user-status {
+            font-size: 13px;
+            color: #888;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .online-badge {
+            background: #10b981;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .footer-note {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .updating {
+            animation: pulse 1s ease-in-out;
+        }
     </style>
 </head>
 <body>
+    <div class="container">
+        <!-- Мой профиль -->
+        <div class="profile-card">
+            <div class="profile-header">
+                <div class="profile-title">
+                    📋 Мой профиль
+                </div>
+                <div id="myInfo">Загрузка...</div>
+            </div>
+            <div class="status-buttons">
+                <button class="status-btn" style="background: #e8f5e9; color: #2e7d32;" onclick="changeStatus('📚 Учусь', '#4caf50')">
+                    <span class="status-dot" style="background: #4caf50;"></span> Учусь
+                </button>
+                <button class="status-btn" style="background: #fff3e0; color: #ef6c00;" onclick="changeStatus('☕ Кофе', '#ff9800')">
+                    <span class="status-dot" style="background: #ff9800;"></span> Кофе
+                </button>
+                <button class="status-btn" style="background: #e3f2fd; color: #1565c0;" onclick="changeStatus('🎮 В игре', '#2196f3')">
+                    <span class="status-dot" style="background: #2196f3;"></span> В игре
+                </button>
+                <button class="status-btn" style="background: #fce4ec; color: #c2185b;" onclick="changeStatus('🏠 Дома', '#e91e63')">
+                    <span class="status-dot" style="background: #e91e63;"></span> Дома
+                </button>
+                <button class="status-btn" style="background: #eceff1; color: #546e7a;" onclick="changeStatus('💼 На работе', '#78909c')">
+                    <span class="status-dot" style="background: #78909c;"></span> На работе
+                </button>
+                <button class="status-btn" style="background: #fff9c4; color: #f9a825;" onclick="changeStatus('😴 Спит', '#ffc107')">
+                    <span class="status-dot" style="background: #ffc107;"></span> Спит
+                </button>
+            </div>
+        </div>
 
-    <div id="myinfo">Загрузка данных профиля...</div>
-    
-    <h3>Список группы:</h3>
-    <div id="grouplist"></div>
+        <!-- Монитор группы -->
+        <div class="monitor-card">
+            <div class="monitor-title">
+                👥 Монитор группы
+                <span style="font-size: 12px; font-weight: normal; color: #888; margin-left: 8px;">обновляется каждые 5 сек</span>
+            </div>
+            <div id="grouplist" class="group-list">
+                <div style="text-align: center; padding: 20px; color: #888;">Загрузка участников...</div>
+            </div>
+        </div>
+        <div class="footer-note">
+            💡 Статус обновляется у всех участников в реальном времени
+        </div>
+    </div>
 
     <script type="module">
-        // 1. Импорт библиотеки Supabase
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-        // 2. Конфигурация подключения
+        // ВАШИ НОВЫЕ ДАННЫЕ
         const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
         const KEY = 'sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA';
         const supabase = createClient(URL, KEY);
 
-        // ID вашего пользователя (из скриншота)
         const MY_ID = 'f455f564-7f46-4a23-b6c1-df0c5176a406';
 
-        /**
-         * Функция для обновления статуса текущего пользователя
-         * Вызывается из консоли или по нажатию кнопок (например: changeStatus('На связи', 'green'))
-         */
+        // Функция для изменения статуса (глобальная, доступна из onclick)
         window.changeStatus = async (text, color) => {
-            const { error } = await supabase
-                .from('profiles')
-                .update({ status: text, color: color })
-                .eq('id', MY_ID);
+            try {
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ status: text, color: color })
+                    .eq('id', MY_ID);
 
-            if (error) {
-                alert("Ошибка! Проверьте RLS политики в Supabase.");
-                console.error('Ошибка обновления:', error);
-            } else {
-                console.log('Статус обновлен!');
-                fetchGroup(); // Сразу обновляем список на экране
+                if (error) {
+                    console.error('Ошибка при обновлении:', error);
+                    alert("Ошибка! Проверьте RLS политики в Supabase.\n" + error.message);
+                } else {
+                    // Анимация обратной связи
+                    const btn = event.currentTarget;
+                    const originalBg = btn.style.background;
+                    btn.style.background = '#c8e6c9';
+                    setTimeout(() => { btn.style.background = originalBg; }, 200);
+                    
+                    // Обновляем список сразу
+                    await fetchGroup();
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Ошибка соединения: " + err.message);
             }
         };
 
-        /**
-         * Функция получения списка всех пользователей и отрисовки HTML
-         */
+        // Функция получения данных из Supabase
         async function fetchGroup() {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('username', { ascending: true });
+            try {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .order('username', { ascending: true });
 
-            if (error) {
-                console.error('Ошибка при получении данных:', error);
-                return;
-            }
+                if (error) {
+                    console.error('Ошибка получения данных:', error);
+                    return;
+                }
 
-            // Отрисовка списка
-            const list = document.getElementById('grouplist');
-            list.innerHTML = data.map(user => `
-                <div class="user-item">
-                    <div class="status-dot" style="background: ${user.color || '#ccc'}"></div>
-                    <div style="flex-grow: 1;">
-                        <strong>${user.username || 'Без имени'}</strong><br>
-                        <small style="color: #666;">${user.status || 'Статус не задан'}</small>
+                if (!data || data.length === 0) {
+                    document.getElementById('grouplist').innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">👥 Нет участников в группе</div>';
+                    return;
+                }
+
+                // Обновляем список пользователей
+                const list = document.getElementById('grouplist');
+                list.innerHTML = data.map(user => `
+                    <div class="user-item">
+                        <div class="status-dot-big" style="background: ${user.color || '#ccc'}"></div>
+                        <div class="user-info">
+                            <div class="username">${escapeHtml(user.username || 'Без имени')}</div>
+                            <span class="user-status">${escapeHtml(user.status || 'Статус не задан')}</span>
+                        </div>
+                        ${user.id === MY_ID ? '<span class="online-badge">Это вы</span>' : ''}
                     </div>
-                </div>
-            `).join('');
+                `).join('');
 
-            // Обновление информации о текущем пользователе
-            const me = data.find(u => u.id === MY_ID);
-            if (me) {
-                document.getElementById('myinfo').innerText = `Вы зашли как: ${me.username}`;
+                // Находим текущего пользователя и обновляем "Вы зашли как"
+                const me = data.find(u => u.id === MY_ID);
+                if (me) {
+                    document.getElementById('myInfo').innerHTML = `👤 ${escapeHtml(me.username)}`;
+                } else {
+                    document.getElementById('myInfo').innerHTML = `⚠️ Пользователь не найден`;
+                }
+
+                // Добавляем визуальный эффект обновления
+                const monitorCard = document.querySelector('.monitor-card');
+                monitorCard.classList.add('updating');
+                setTimeout(() => monitorCard.classList.remove('updating'), 300);
+                
+            } catch (err) {
+                console.error('Ошибка в fetchGroup:', err);
             }
         }
 
-        // Запускаем первичную загрузку
+        // Функция для защиты от XSS
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        // Загружаем данные при старте
         fetchGroup();
-
-        // Устанавливаем интервал автообновления (каждые 5 секунд)
+        
+        // Автообновление каждые 5 секунд
         setInterval(fetchGroup, 5000);
-
     </script>
 </body>
 </html>
