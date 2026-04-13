@@ -7,30 +7,33 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333; }
         .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h3 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        #myinfo { margin-bottom: 20px; padding: 10px; background: #e8f4fd; border-radius: 8px; font-weight: bold; color: #007bff; }
+        h3 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 25px; }
+        #myinfo { margin-bottom: 20px; padding: 10px; background: #e8f4fd; border-radius: 8px; font-weight: bold; color: #007bff; text-align: center; }
         
-        /* Стили списка */
-        .user-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #eee; transition: background 0.3s; }
+        /* Списки */
+        .user-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
         .user-item:last-child { border-bottom: none; }
-        .status-dot { width: 14px; height: 14px; border-radius: 50%; margin-right: 15px; box-shadow: 0 0 5px rgba(0,0,0,0.2); }
+        .status-dot { width: 14px; height: 14px; border-radius: 50%; margin-right: 15px; border: 1px solid rgba(0,0,0,0.1); }
         .user-details strong { display: block; font-size: 1.1em; }
         .user-details small { color: #777; font-size: 0.9em; }
 
-        /* Кнопки управления */
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; padding-top: 15px; border-top: 2px solid #eee; }
-        button { padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: opacity 0.3s; color: white; }
-        button:active { transform: scale(0.98); }
+        /* Кнопки */
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; transition: transform 0.1s, opacity 0.2s; }
+        button:active { transform: scale(0.95); }
+        button:hover { opacity: 0.9; }
         .btn-online { background-color: #28a745; }
         .btn-busy { background-color: #dc3545; }
         .btn-away { background-color: #ffc107; color: #333; }
         .btn-offline { background-color: #6c757d; }
+        
+        .error-msg { color: #dc3545; background: #fff1f0; padding: 10px; border-radius: 5px; border: 1px solid #ffa39e; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div id="myinfo">Подключение к базе...</div>
+    <div id="myinfo">Подключение к системе...</div>
 
     <div class="controls">
         <button class="btn-online" onclick="changeStatus('На связи', '#28a745')">На связи</button>
@@ -40,74 +43,80 @@
     </div>
 
     <h3>Список группы:</h3>
-    <div id="grouplist">Загрузка пользователей...</div>
+    <div id="grouplist">Загрузка данных...</div>
 </div>
 
 <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    // Твои новые ключи
+    // Твои данные
     const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
     const KEY = 'sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA';
     const MY_ID = 'f455f564-7f46-4a23-b6c1-df0c5176a406';
 
     const supabase = createClient(URL, KEY);
 
-    // Функция обновления (теперь она привязана к кнопкам выше)
+    // ВАЖНО: Название таблицы теперь с большой буквы 'Profiles'
+    const TABLE_NAME = 'Profiles';
+
+    // Функция обновления статуса
     window.changeStatus = async (text, color) => {
         const { error } = await supabase
-            .from('profiles')
+            .from(TABLE_NAME)
             .update({ status: text, color: color })
             .eq('id', MY_ID);
 
         if (error) {
-            console.error("Ошибка обновления:", error);
-            alert("Ошибка! Проверь RLS политики: " + error.message);
+            console.error("Ошибка при обновлении:", error);
+            alert("Ошибка обновления! Проверь RLS: " + error.message);
         } else {
-            fetchGroup();
+            fetchGroup(); // Сразу обновляем список
         }
     };
 
     // Функция получения данных
     async function fetchGroup() {
         const { data, error } = await supabase
-            .from('profiles')
+            .from(TABLE_NAME)
             .select('*')
             .order('username', { ascending: true });
 
+        const listDiv = document.getElementById('grouplist');
+
         if (error) {
-            console.error("Ошибка загрузки:", error);
-            document.getElementById('grouplist').innerText = "Ошибка загрузки: " + error.message;
+            console.error("Ошибка запроса:", error);
+            listDiv.innerHTML = `<div class="error-msg">Ошибка: ${error.message}<br><small>Проверь, создана ли таблица "${TABLE_NAME}" и включен ли RLS SELECT</small></div>`;
             return;
         }
 
-        const list = document.getElementById('grouplist');
         if (data.length === 0) {
-            list.innerText = "В таблице пока нет записей.";
+            listDiv.innerText = "В таблице нет данных.";
             return;
         }
 
-        list.innerHTML = data.map(user => `
+        // Отрисовка
+        listDiv.innerHTML = data.map(user => `
             <div class="user-item">
                 <div class="status-dot" style="background: ${user.color || '#ccc'}"></div>
                 <div class="user-details">
-                    <strong>${user.username || 'Без имени'}</strong>
-                    <small>${user.status || 'Статус не задан'}</small>
+                    <strong>${user.username || 'Аноним'}</strong>
+                    <small>${user.status || 'Статус не указан'}</small>
                 </div>
             </div>
         `).join('');
 
+        // Информация о текущем пользователе
         const me = data.find(u => u.id === MY_ID);
         if (me) {
-            document.getElementById('myinfo').innerText = `Вы зашли как: ${me.username}`;
+            document.getElementById('myinfo').innerText = `Вы: ${me.username}`;
         } else {
-            document.getElementById('myinfo').innerText = `ID не найден в базе!`;
+            document.getElementById('myinfo').innerText = `Ваш ID не найден в таблице`;
         }
     }
 
-    // Запуск
+    // Первичный запуск и цикл обновления
     fetchGroup();
-    setInterval(fetchGroup, 5000); // Обновлять каждые 5 сек
+    setInterval(fetchGroup, 5000); 
 </script>
 
 </body>
