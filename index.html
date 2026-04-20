@@ -7,13 +7,36 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
         .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        #myinfo { background: #e7f3ff; color: #1877f2; padding: 10px; border-radius: 8px; font-weight: bold; text-align: center; margin-bottom: 20px; }
         
+        #myinfo { 
+            background: #e7f3ff; 
+            color: #1877f2; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            text-align: center; 
+            margin-bottom: 20px; 
+            font-size: 0.9em;
+        }
+
+        .auth-section { margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+        
+        .btn-google { 
+            background: white; 
+            color: #333; 
+            border: 1px solid #ccc; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px;
+        }
+        
+        .btn-logout { background: #8a8d91; font-size: 0.8em; margin-top: 5px; }
+
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }
         button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; transition: 0.2s; }
         button:active { transform: scale(0.95); }
         
-        /* Цвета кнопок для наглядности (в базу они не идут) */
         .btn-1 { background-color: #42b72a; } 
         .btn-2 { background-color: #fa3e3e; }
         .btn-3 { background-color: #f7b125; }
@@ -28,7 +51,14 @@
 <body>
 
 <div class="card">
-    <div id="myinfo">Загрузка профиля...</div>
+    <div id="myinfo">Проверка авторизации...</div>
+
+    <div class="auth-section">
+        <button id="loginBtn" class="btn-google" onclick="signInWithGoogle()">
+            <img src="https://www.google.com/favicon.ico" width="16"> Войти через Google
+        </button>
+        <button id="logoutBtn" class="btn-logout" onclick="signOut()" style="display:none;">Выйти</button>
+    </div>
 
     <div class="controls">
         <button class="btn-1" onclick="changeStatus('На связи')">На связи</button>
@@ -37,62 +67,98 @@
         <button class="btn-4" onclick="changeStatus('Не в сети')">Оффлайн</button>
     </div>
 
-    <h3 style="margin-bottom: 15px;">Список участников:</h3>
-    <div id="grouplist">Загрузка списка...</div>
+    <h3 style="margin-bottom: 15px;">Участники:</h3>
+    <div id="grouplist">Загрузка...</div>
 </div>
 
 <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    // Твои настройки
+    // Твои данные уже вставлены
     const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
     const KEY = 'sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA';
-    const MY_ID = 'f455f564-7f46-4a23-b6c1-df0c5176a406';
-
     const supabase = createClient(URL, KEY);
 
-    // Функция обновления (только поле status)
+    // Вход через Google
+    window.signInWithGoogle = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin + window.location.pathname
+            }
+        });
+        if (error) alert("Ошибка: " + error.message);
+    };
+
+    // Выход
+    window.signOut = async () => {
+        await supabase.auth.signOut();
+        location.reload();
+    };
+
+    // Смена статуса
     window.changeStatus = async (newStatus) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+            alert("Сначала войдите через Google!");
+            return;
+        }
+
         const { error } = await supabase
             .from('Profile')
-            .update({ status: newStatus }) // Поле color удалено
-            .eq('id', MY_ID);
+            .upsert({ 
+                id: user.id, 
+                username: user.user_metadata.full_name || user.email, 
+                status: newStatus 
+            });
 
         if (error) {
-            alert("Ошибка при обновлении: " + error.message);
+            alert("Ошибка базы данных: " + error.message);
         } else {
             fetchGroup();
         }
     };
 
-    // Функция получения данных
+    // Получение списка
     async function fetchGroup() {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Обновляем шапку
+        if (user) {
+            document.getElementById('myinfo').innerText = `Вы: ${user.user_metadata.full_name || user.email}`;
+            document.getElementById('loginBtn').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'block';
+        } else {
+            document.getElementById('myinfo').innerText = "Войдите, чтобы менять статус";
+            document.getElementById('loginBtn').style.display = 'flex';
+            document.getElementById('logoutBtn').style.display = 'none';
+        }
+
+        // Грузим всех из таблицы Profile
         const { data, error } = await supabase
             .from('Profile')
             .select('id, username, status')
             .order('username', { ascending: true });
 
         if (error) {
-            document.getElementById('grouplist').innerHTML = "Ошибка: " + error.message;
+            document.getElementById('grouplist').innerHTML = "Ошибка загрузки данных.";
             return;
         }
 
         const listDiv = document.getElementById('grouplist');
-        listDiv.innerHTML = data.map(user => `
+        listDiv.innerHTML = data.map(u => `
             <div class="user-item">
-                <strong>${user.username || 'Без имени'}</strong>
-                <p>${user.status || 'Нет статуса'}</p>
+                <strong>${u.username || 'Пользователь'}</strong>
+                <p>${u.status || 'Статус не установлен'}</p>
             </div>
         `).join('');
-
-        const me = data.find(u => u.id === MY_ID);
-        if (me) {
-            document.getElementById('myinfo').innerText = `Вы вошли как: ${me.username}`;
-        }
     }
 
+    // Инициализация
     fetchGroup();
-    setInterval(fetchGroup, 5000); 
+    // Обновлять список каждые 10 секунд
+    setInterval(fetchGroup, 10000); 
 </script>
 
 </body>
