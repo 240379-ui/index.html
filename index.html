@@ -1,241 +1,185 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Общий чат + Google Auth + Supabase</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
-      display: flex;
-      justify-content: center;
-      padding: 20px;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статус Группы Realtime</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; padding: 20px; display: flex; justify-content: center; margin: 0; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 400px; border: 1px solid #e0e0e0; }
+        
+        #myinfo { 
+            background: #e7f3ff; 
+            color: #1877f2; 
+            padding: 15px; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            text-align: center; 
+            margin-bottom: 20px; 
+            font-size: 0.95em;
+        }
 
-    .container {
-      width: 420px;
-    }
+        .auth-section { margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+        
+        .btn-google { 
+            background: white; 
+            color: #333; 
+            border: 1px solid #ddd; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 10px;
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn-google:hover { background: #f8f9fa; }
+        
+        .btn-logout { background: #f0f2f5; color: #606770; font-size: 0.85em; border: none; padding: 8px; border-radius: 6px; cursor: pointer; margin-top: 5px; }
 
-    .card {
-      background: #fff;
-      border-radius: 20px;
-      padding: 25px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-    }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
+        .controls button { border: none; border-radius: 10px; cursor: pointer; font-weight: 600; color: white; transition: transform 0.1s, opacity 0.2s; padding: 14px; font-size: 0.9em; }
+        .controls button:active { transform: scale(0.96); }
+        .controls button:hover { opacity: 0.9; }
+        
+        .btn-1 { background-color: #42b72a; } /* На связи */
+        .btn-2 { background-color: #fa3e3e; } /* Занят */
+        .btn-3 { background-color: #f7b125; } /* Отойду */
+        .btn-4 { background-color: #8a8d91; } /* Оффлайн */
 
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+        .user-item { padding: 15px 0; border-bottom: 1px solid #f0f2f5; display: flex; flex-direction: column; }
+        .user-item:last-child { border-bottom: none; }
+        .user-item strong { font-size: 1.05em; color: #1c1e21; }
+        .user-item span { margin-top: 4px; font-size: 0.9em; padding: 4px 8px; border-radius: 6px; width: fit-content; font-weight: 500; }
 
-    .timer {
-      text-align: center;
-      font-size: 32px;
-      color: #2563eb;
-      font-weight: bold;
-      margin-bottom: 20px;
-    }
-
-    button {
-      border: none;
-      border-radius: 10px;
-      padding: 14px;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: bold;
-    }
-
-    .google-btn {
-      width: 100%;
-      background: #2563eb;
-      color: white;
-      margin-bottom: 15px;
-    }
-
-    .danger {
-      width: 100%;
-      background: #ef4444;
-      color: white;
-      margin-bottom: 10px;
-    }
-
-    .row {
-      display: flex;
-      gap: 10px;
-    }
-
-    .warning {
-      flex: 1;
-      background: #facc15;
-    }
-
-    .gray {
-      flex: 1;
-      background: #9ca3af;
-      color: white;
-    }
-
-    .chat-box {
-      height: 250px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 10px;
-      overflow-y: auto;
-      margin-bottom: 15px;
-      background: #fafafa;
-    }
-
-    .message {
-      margin-bottom: 10px;
-    }
-
-    .input-row {
-      display: flex;
-      gap: 10px;
-    }
-
-    input {
-      flex: 1;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      font-size: 14px;
-    }
-
-    .send-btn {
-      width: 60px;
-      background: #22c55e;
-      color: white;
-    }
-  </style>
+        /* Цвета статусов в списке */
+        .status-online { background: #e7f3ff; color: #1877f2; }
+        .status-busy { background: #ffebe9; color: #fa3e3e; }
+        .status-away { background: #fff8e6; color: #f7b125; }
+        .status-offline { background: #f0f2f5; color: #606770; }
+    </style>
 </head>
 <body>
 
-<div class="container">
+<div class="card">
+    <div id="myinfo">Загрузка данных...</div>
 
-  <div class="card">
-    <h2 id="username">Авторизация</h2>
-
-    <button class="google-btn" onclick="signInWithGoogle()">
-      Войти через Google
-    </button>
-
-    <div class="timer" id="timer">23 сек.</div>
-
-    <button class="danger" onclick="endSession()">Завершить сессию</button>
-
-    <div class="row">
-      <button class="warning" onclick="takeBreak()">Перерыв</button>
-      <button class="gray" onclick="logout()">Выход</button>
+    <div class="auth-section">
+        <button id="loginBtn" class="btn-google" onclick="signInWithGoogle()">
+            <img src="https://www.google.com/favicon.ico" width="18"> Войти через Google
+        </button>
+        <button id="logoutBtn" class="btn-logout" onclick="signOut()" style="display:none;">Выйти из аккаунта</button>
     </div>
-  </div>
 
-  <div class="card">
-    <h2>Общий чат</h2>
-
-    <div class="chat-box" id="chatBox"></div>
-
-    <div class="input-row">
-      <input type="text" id="messageInput" placeholder="Сообщение..." />
-      <button class="send-btn" onclick="sendMessage()">➤</button>
+    <div class="controls">
+        <button class="btn-1" onclick="changeStatus('На связи')">На связи</button>
+        <button class="btn-2" onclick="changeStatus('Занят')">Занят</button>
+        <button class="btn-3" onclick="changeStatus('Отойду')">Отойду</button>
+        <button class="btn-4" onclick="changeStatus('Не в сети')">Оффлайн</button>
     </div>
-  </div>
 
+    <h3 style="margin-top: 0; color: #1c1e21;">Участники группы:</h3>
+    <div id="grouplist">Загрузка списка...</div>
 </div>
 
-<script>
-  function endSession() {
-    alert("Сессия завершена");
-    document.getElementById("timer").innerText = "0 сек.";
-  }
+<script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-  function takeBreak() {
-    alert("Перерыв начат на 5 минут");
-  }
+    const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
+    const KEY = 'sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA';
+    const supabase = createClient(URL, KEY);
 
-  
-  const supabaseUrl = "https://yhlulkexiyalevwcuqka.supabase.co"; // вставь свой настоящий URL проекта
-  const supabaseKey = "sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA";
+    // Авторизация через Google
+    window.signInWithGoogle = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: window.location.origin + window.location.pathname }
+        });
+        if (error) alert("Ошибка: " + error.message);
+    };
 
-  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    // Выход
+    window.signOut = async () => {
+        await supabase.auth.signOut();
+        location.reload();
+    };
 
-  let currentUser = null;
+    // Смена статуса (Upsert: Insert или Update)
+    window.changeStatus = async (newStatus) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+            alert("Пожалуйста, сначала войдите через Google!");
+            return;
+        }
 
-  async function signInWithGoogle() {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.href
-      }
-    });
-  }
+        const { error } = await supabase
+            .from('Profile')
+            .upsert({ 
+                id: user.id, 
+                username: user.user_metadata.full_name || user.email, 
+                status: newStatus 
+            });
 
-  async function checkUser() {
-    const { data } = await supabase.auth.getUser();
+        if (error) alert("Ошибка БД: " + error.message);
+        // Список обновится автоматически через Realtime
+    };
 
-    if (data.user) {
-      currentUser = data.user;
-      document.getElementById("username").innerText =
-        data.user.user_metadata.full_name || data.user.email;
-    }
-  }
-
-  async function logout() {
-    await supabase.auth.signOut();
-    location.reload();
-  }
-
-  async function loadMessages() {
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .order("created_at", { ascending: true });
-
-    const chatBox = document.getElementById("chatBox");
-    chatBox.innerHTML = "";
-
-    if (data) {
-      data.forEach(msg => {
-        chatBox.innerHTML += `
-          <div class="message">
-            <b>${msg.username}:</b> ${msg.text}
-          </div>
-        `;
-      });
+    // Функция отрисовки статуса
+    function getStatusClass(status) {
+        if (status === 'На связи') return 'status-online';
+        if (status === 'Занят') return 'status-busy';
+        if (status === 'Отойду') return 'status-away';
+        return 'status-offline';
     }
 
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }
+    // Загрузка и отображение группы
+    async function fetchGroup() {
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
 
-  async function sendMessage() {
-    const input = document.getElementById("messageInput");
-    const text = input.value;
+        if (user) {
+            document.getElementById('myinfo').innerText = `Вы вошли как: ${user.user_metadata.full_name || user.email}`;
+            document.getElementById('loginBtn').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'block';
+        } else {
+            document.getElementById('myinfo').innerText = "Войдите для управления статусом";
+            document.getElementById('loginBtn').style.display = 'flex';
+            document.getElementById('logoutBtn').style.display = 'none';
+        }
 
-    if (!text || !currentUser) return;
+        const { data, error } = await supabase
+            .from('Profile')
+            .select('*')
+            .order('username', { ascending: true });
 
-    await supabase.from("messages").insert([
-      {
-        username: currentUser.user_metadata.full_name || currentUser.email,
-        text: text
-      }
-    ]);
+        if (error) {
+            document.getElementById('grouplist').innerHTML = "Ошибка загрузки.";
+            return;
+        }
 
-    input.value = "";
-    loadMessages();
-  }
+        const listDiv = document.getElementById('grouplist');
+        listDiv.innerHTML = data.map(u => `
+            <div class="user-item">
+                <strong>${u.username}</strong>
+                <span class="${getStatusClass(u.status)}">${u.status || 'Нет статуса'}</span>
+            </div>
+        `).join('');
+    }
 
-  let sec = 23;
-  setInterval(() => {
-    if (sec > 0) sec--;
-    document.getElementById("timer").innerText = sec + " сек.";
-  }, 1000);
+    // Включаем Realtime (Слушаем изменения в таблице Profile)
+    supabase
+        .channel('public:Profile')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'Profile' }, () => {
+            fetchGroup(); // Перерисовываем список при любом изменении
+        })
+        .subscribe();
 
-  checkUser();
-  loadMessages();
+    // Начальная загрузка
+    fetchGroup();
+
 </script>
 
 </body>
