@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Сессия</title>
+  <title>Общий чат + Google Auth + Supabase</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
@@ -126,10 +126,10 @@
 
     <div class="timer" id="timer">23 сек.</div>
 
-    <button class="danger">Завершить сессию</button>
+    <button class="danger" onclick="endSession()">Завершить сессию</button>
 
     <div class="row">
-      <button class="warning">Перерыв</button>
+      <button class="warning" onclick="takeBreak()">Перерыв</button>
       <button class="gray" onclick="logout()">Выход</button>
     </div>
   </div>
@@ -148,16 +148,29 @@
 </div>
 
 <script>
-  const supabaseUrl = "https://yhlulkexiyalevwcuqka.supabase.co";
+  function endSession() {
+    alert("Сессия завершена");
+    document.getElementById("timer").innerText = "0 сек.";
+  }
+
+  function takeBreak() {
+    alert("Перерыв начат на 5 минут");
+  }
+
+  
+  const supabaseUrl = "https://yhlulkexiyalevwcuqka.supabase.co"; // вставь свой настоящий URL проекта
   const supabaseKey = "sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA";
 
-  const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
   let currentUser = null;
 
   async function signInWithGoogle() {
     await supabase.auth.signInWithOAuth({
-      provider: 'google'
+      provider: 'google',
+      options: {
+        redirectTo: window.location.href
+      }
     });
   }
 
