@@ -29,12 +29,16 @@
             align-items: center; 
             justify-content: center; 
             gap: 8px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
         }
         
         .btn-logout { background: #8a8d91; font-size: 0.8em; margin-top: 5px; }
 
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }
-        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; transition: 0.2s; }
+        button { border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; transition: 0.2s; padding: 12px; }
         button:active { transform: scale(0.95); }
         
         .btn-1 { background-color: #42b72a; } 
@@ -46,6 +50,16 @@
         .user-item:last-child { border-bottom: none; }
         strong { font-size: 1.1em; color: #1c1e21; }
         p { margin: 4px 0 0; color: #606770; font-size: 0.9em; }
+
+        /* Стиль для индикатора статуса */
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-left: 10px;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -74,7 +88,7 @@
 <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    // Твои данные уже вставлены
+    // Твои настройки Supabase
     const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
     const KEY = 'sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA';
     const supabase = createClient(URL, KEY);
@@ -87,7 +101,7 @@
                 redirectTo: window.location.origin + window.location.pathname
             }
         });
-        if (error) alert("Ошибка: " + error.message);
+        if (error) alert("Ошибка авторизации: " + error.message);
     };
 
     // Выход
@@ -101,7 +115,7 @@
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
-            alert("Сначала войдите через Google!");
+            alert("Пожалуйста, сначала войдите через Google!");
             return;
         }
 
@@ -114,17 +128,18 @@
             });
 
         if (error) {
-            alert("Ошибка базы данных: " + error.message);
+            alert("Ошибка при сохранении статуса: " + error.message);
         } else {
-            fetchGroup();
+            fetchGroup(); // Сразу обновляем список
         }
     };
 
-    // Получение списка
+    // Получение списка всех участников
     async function fetchGroup() {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
         
-        // Обновляем шапку
+        // Обновляем информацию о текущем пользователе
         if (user) {
             document.getElementById('myinfo').innerText = `Вы: ${user.user_metadata.full_name || user.email}`;
             document.getElementById('loginBtn').style.display = 'none';
@@ -135,30 +150,37 @@
             document.getElementById('logoutBtn').style.display = 'none';
         }
 
-        // Грузим всех из таблицы Profile
+        // Загружаем всех из таблицы Profile
         const { data, error } = await supabase
             .from('Profile')
             .select('id, username, status')
             .order('username', { ascending: true });
 
         if (error) {
-            document.getElementById('grouplist').innerHTML = "Ошибка загрузки данных.";
+            console.error(error);
+            document.getElementById('grouplist').innerHTML = "Ошибка загрузки списка участников.";
             return;
         }
 
         const listDiv = document.getElementById('grouplist');
-        listDiv.innerHTML = data.map(u => `
-            <div class="user-item">
-                <strong>${u.username || 'Пользователь'}</strong>
-                <p>${u.status || 'Статус не установлен'}</p>
-            </div>
-        `).join('');
+        if (data.length === 0) {
+            listDiv.innerHTML = "<p>Пока никого нет...</p>";
+        } else {
+            listDiv.innerHTML = data.map(u => `
+                <div class="user-item">
+                    <strong>${u.username || 'Без имени'}</strong>
+                    <p>${u.status || 'Статус не установлен'}</p>
+                </div>
+            `).join('');
+        }
     }
 
-    // Инициализация
+    // Запускаем при загрузке
     fetchGroup();
-    // Обновлять список каждые 10 секунд
-    setInterval(fetchGroup, 10000); 
+
+    // Авто-обновление раз в 5 секунд для "живого" эффекта
+    setInterval(fetchGroup, 5000); 
+
 </script>
 
 </body>
