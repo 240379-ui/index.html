@@ -17,7 +17,6 @@
         .btn-stop { background: #ff4b5c; color: white; }
         .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
         .status-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--gray); padding: 10px; border-radius: 10px; cursor: pointer; font-size: 12px; }
-        
         .list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 15px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.03); }
         .info { display: flex; align-items: center; gap: 12px; text-align: left; }
         .dot { width: 10px; height: 10px; border-radius: 50%; background: #444; }
@@ -40,7 +39,7 @@
             <button class="status-btn" onclick="setQuickStatus('🟢 В сети')">В сети</button>
             <button class="status-btn" onclick="setQuickStatus('🟡 Отошел')">Отошел</button>
             <button class="status-btn" onclick="setQuickStatus('🔴 Занят')">Занят</button>
-            <button class="status-btn" onclick="setQuickStatus('🔘 ДНД')">ДНД</button>
+            <button class="status-btn" onclick="setQuickStatus('🔘 Перерыв')">Перерыв</button>
         </div>
         <button class="btn" style="background:transparent; color:#888; border:1px solid #333; margin-top:15px;" onclick="handleLogout()">Выйти из аккаунта</button>
     </div>
@@ -87,86 +86,84 @@
     window.handleLogin = () => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
     window.handleLogout = async () => { await supabase.auth.signOut(); location.reload(); };
 
-    // --- ГЛАВНАЯ ФУНКЦИЯ СОХРАНЕНИЯ (И ДОСТИЖЕНИЙ) ---
+    // ОСНОВНАЯ ФУНКЦИЯ СОХРАНЕНИЯ В БАЗУ
     window.updateStatus = async (newStatus, resetTimer = false) => {
         if (!me) return;
         
-        // 1. Берем старое время + новые секунды
         const oldTime = myProfile.total_time || 0;
         const newTotalTime = oldTime + sessionSeconds;
-        
-        // 2. Логика значков
-        let newBadges = myProfile.badges ? [...myProfile.badges] : [];
+        let newBadges = Array.isArray(myProfile.badges) ? [...myProfile.badges] : [];
         let earned = false;
 
-        // Марафонец (если на таймере больше 10 сек)
+        // Марафонец (таймер > 10 сек)
         if (sessionSeconds >= 10 && !newBadges.includes('marathon')) {
             newBadges.push('marathon'); earned = true;
         }
         
-        // Ранняя пташка (до 9:00)
+        // Ранняя пташка
         if (new Date().getHours() < 9 && !newBadges.includes('early_bird')) {
             newBadges.push('early_bird'); earned = true;
         }
 
         if (earned) alert("🎉 Вы получили новое достижение!");
 
-        // 3. Отправляем в базу
-        await supabase.from('Profile').upsert({
+        // Отправка запроса с обработкой ошибок!
+        const { error } = await supabase.from('Profile').upsert({
             id: me.id,
             username: me.user_metadata.full_name,
             status: newStatus,
             total_time: newTotalTime,
-            badges: newBadges
+            last_seen: new Date().toISOString(), // Записываем в вашу колонку
+            badges: newBadges 
         });
 
+        if (error) {
+            console.error("Ошибка сохранения:", error);
+            alert("Ошибка базы данных! Откройте консоль (F12) для подробностей. Сообщение: " + error.message);
+            return;
+        }
+
         if (resetTimer) sessionSeconds = 0;
-        
-        // Сразу обновляем интерфейс
         await loadMyProfile();
         await syncData();
     };
 
     window.setQuickStatus = async (st) => {
         if (!me) return;
-        await supabase.from('Profile').update({ status: st }).eq('id', me.id);
+        const { error } = await supabase.from('Profile').update({ status: st, last_seen: new Date().toISOString() }).eq('id', me.id);
+        if (error) alert("Ошибка обновления статуса: " + error.message);
         syncData();
     };
 
-    // Загрузка только моего профиля (чтобы видеть свои значки)
     async function loadMyProfile() {
-        const { data } = await supabase.from('Profile').select('*').eq('id', me.id).single();
+        const { data, error } = await supabase.from('Profile').select('*').eq('id', me.id).single();
         if (data) {
             myProfile = data;
-            const badgesHTML = (data.badges || []).map(b => ACHIEVEMENTS[b] || '').join(' ');
-            document.getElementById('my-badges').innerHTML = badgesHTML || '<span style="font-size:12px;color:#666;">Нет значков</span>';
-        } else {
-            // Если профиля в базе вообще нет - создаем пустышку
-            await updateStatus('🟢 В сети', false);
+            const badgesArray = Array.isArray(data.badges) ? data.badges : [];
+            const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] || '').join(' ');
+            document.getElementById('my-badges').innerHTML = badgesHTML || '<span style="font-size:12px;color:#666;">Пока нет значков</span>';
         }
     }
 
-    // --- ФУНКЦИЯ ОТРИСОВКИ РЕЙТИНГА И СТАТУСОВ ---
     async function syncData() {
-        // Загружаем ТОП (сортируем по времени)
+        // ТОП
         const { data: profiles } = await supabase.from('Profile').select('*').order('total_time', { ascending: false });
         
-        if (profiles && profiles.length > 0) {
-            // РЕНДЕР ТОПА
+        if (profiles) {
             document.getElementById('leaderboard').innerHTML = profiles.slice(0, 5).map((p, i) => `
                 <div class="list-item">
                     <div class="info">
                         <span style="color:#555; width:15px;">${i+1}</span> 
-                        <b style="font-size:14px;">${p.username || 'Аноним'}</b>
+                        <b style="font-size:14px;">${p.username || 'Без имени'}</b>
                     </div>
                     <span style="color:var(--accent); font-weight:bold; font-size:12px;">${formatTime(p.total_time)}</span>
                 </div>
             `).join('');
 
-            // РЕНДЕР ГРУППЫ (со значками и статусами)
             document.getElementById('group-list').innerHTML = profiles.map(p => {
                 const isOnline = onlineUsers[p.id];
-                const badges = (p.badges || []).map(b => ACHIEVEMENTS[b] || '').join('');
+                const badgesArray = Array.isArray(p.badges) ? p.badges : [];
+                const badges = badgesArray.map(b => ACHIEVEMENTS[b] || '').join('');
                 const statusText = isOnline ? (p.status || '🟢 В сети') : '⚪ Офлайн';
                 
                 return `
@@ -174,18 +171,15 @@
                     <div class="info">
                         <div class="dot ${isOnline ? 'online' : ''}"></div>
                         <div>
-                            <div style="font-size:14px; font-weight:bold;">${p.username || 'Аноним'} <span style="margin-left:5px;">${badges}</span></div>
+                            <div style="font-size:14px; font-weight:bold;">${p.username || 'Без имени'} <span style="margin-left:5px;">${badges}</span></div>
                             <div style="font-size:11px; color:#aaa;">${statusText}</div>
                         </div>
                     </div>
                 </div>`;
             }).join('');
-        } else {
-            document.getElementById('leaderboard').innerHTML = '<div style="color:#666; font-size:12px;">Пока нет данных</div>';
-            document.getElementById('group-list').innerHTML = '<div style="color:#666; font-size:12px;">Никого нет</div>';
         }
 
-        // Загружаем ЧАТ
+        // ЧАТ
         const { data: msgs } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(15);
         if (msgs) {
             document.getElementById('chat-box').innerHTML = msgs.reverse().map(m => `
@@ -196,7 +190,6 @@
         }
     }
 
-    // Вспомогательная функция для часов/минут
     function formatTime(s) {
         if (!s) return '0с';
         const h = Math.floor(s/3600);
@@ -204,7 +197,6 @@
         return h > 0 ? `${h}ч ${m}м` : `${m}м ${s%60}с`;
     }
 
-    // Отправка сообщения (и проверка на Активиста)
     document.getElementById('chat-form').onsubmit = async (e) => {
         e.preventDefault();
         const input = document.getElementById('msg-input');
@@ -213,10 +205,10 @@
         await supabase.from('messages').insert({ user_name: me.user_metadata.full_name, content: input.value });
         input.value = '';
 
-        // Проверка достижения "Активист" (10 сообщений)
         const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('user_name', me.user_metadata.full_name);
-        if (count >= 10 && !(myProfile.badges || []).includes('activist')) {
-            let newB = [...(myProfile.badges || []), 'activist'];
+        let currentBadges = Array.isArray(myProfile.badges) ? myProfile.badges : [];
+        if (count >= 10 && !currentBadges.includes('activist')) {
+            let newB = [...currentBadges, 'activist'];
             await supabase.from('Profile').update({ badges: newB }).eq('id', me.id);
             alert("🎉 Достижение: Активист!");
             loadMyProfile();
@@ -224,7 +216,6 @@
         syncData();
     };
 
-    // --- СТАРТ ПРИЛОЖЕНИЯ ---
     async function start() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -235,15 +226,11 @@
             
             await loadMyProfile();
             
-            // Запускаем Realtime (зеленые точки)
             const channel = supabase.channel('main_room');
             channel.on('presence', { event: 'sync' }, () => { onlineUsers = channel.presenceState(); syncData(); })
-                   .subscribe(async (s) => { if (s === 'SUBSCRIBED') await channel.track({ online_at: new Date() }); });
+                   .subscribe(async (s) => { if (s === 'SUBSCRIBED') await channel.track({ online_at: new Date().toISOString() }); });
             
-            // Принудительно заставляем интерфейс обновляться каждые 3 секунды, даже если Realtime тупит
             setInterval(syncData, 3000);
-
-            // Таймер сессии
             setInterval(() => { sessionSeconds++; document.getElementById('timer-sec').innerText = sessionSeconds; }, 1000);
         }
         syncData();
