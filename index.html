@@ -27,6 +27,7 @@
 <body>
 
 <div class="container">
+    <!-- БЛОК ПРОФИЛЯ -->
     <div id="auth-ui" class="card" style="display:none;">
         <h3 id="my-name">Загрузка...</h3>
         <div class="timer" id="timer-sec">0</div>
@@ -36,6 +37,7 @@
         <button class="btn btn-stop" onclick="updateStatus('💤 Завершил', true)">■ Завершить сессию</button>
         
         <div class="status-grid">
+            <!-- Кнопки быстрых статусов (обновляют данные без перезагрузки) -->
             <button class="status-btn" onclick="setQuickStatus('🟢 В сети')">В сети</button>
             <button class="status-btn" onclick="setQuickStatus('🟡 Отошел')">Отошел</button>
             <button class="status-btn" onclick="setQuickStatus('🔴 Занят')">Занят</button>
@@ -44,21 +46,25 @@
         <button class="btn" style="background:transparent; color:#888; border:1px solid #333; margin-top:15px;" onclick="handleLogout()">Выйти из аккаунта</button>
     </div>
 
+    <!-- БЛОК ВХОДА -->
     <div id="login-ui" class="card">
         <h3>Вход в систему</h3>
         <button class="btn btn-main" onclick="handleLogin()">Войти через Google</button>
     </div>
 
+    <!-- РЕЙТИНГ -->
     <div class="card">
         <h3>🏆 ТОП СТУДЕНТОВ</h3>
         <div id="leaderboard">Загрузка...</div>
     </div>
 
+    <!-- ГРУППА -->
     <div class="card">
         <h3>👥 СТАТУСЫ ГРУППЫ</h3>
         <div id="group-list">Загрузка...</div>
     </div>
 
+    <!-- ЧАТ -->
     <div class="card">
         <h3>💬 ЧАТ</h3>
         <div id="chat-box" class="chat-box"></div>
@@ -72,6 +78,7 @@
 <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
+    // ВАШИ КЛЮЧИ SUPABASE
     const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
     const KEY = 'sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA';
     const supabase = createClient(URL, KEY);
@@ -83,10 +90,11 @@
 
     const ACHIEVEMENTS = { early_bird: '🌅', marathon: '🏃', activist: '💬' };
 
+    // --- АВТОРИЗАЦИЯ ---
     window.handleLogin = () => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
     window.handleLogout = async () => { await supabase.auth.signOut(); location.reload(); };
 
-    // ОСНОВНАЯ ФУНКЦИЯ СОХРАНЕНИЯ В БАЗУ
+    // --- ЛОГИКА СОХРАНЕНИЯ ВРЕМЕНИ И ДОСТИЖЕНИЙ ---
     window.updateStatus = async (newStatus, resetTimer = false) => {
         if (!me) return;
         
@@ -95,48 +103,55 @@
         let newBadges = Array.isArray(myProfile.badges) ? [...myProfile.badges] : [];
         let earned = false;
 
-        // Марафонец (таймер > 10 сек)
+        // Достижение: Марафонец (таймер > 10 сек для теста)
         if (sessionSeconds >= 10 && !newBadges.includes('marathon')) {
             newBadges.push('marathon'); earned = true;
         }
         
-        // Ранняя пташка
+        // Достижение: Ранняя пташка (до 9:00 утра)
         if (new Date().getHours() < 9 && !newBadges.includes('early_bird')) {
             newBadges.push('early_bird'); earned = true;
         }
 
         if (earned) alert("🎉 Вы получили новое достижение!");
 
-        // Отправка запроса с обработкой ошибок!
         const { error } = await supabase.from('Profile').upsert({
             id: me.id,
             username: me.user_metadata.full_name,
             status: newStatus,
             total_time: newTotalTime,
-            last_seen: new Date().toISOString(), // Записываем в вашу колонку
+            last_seen: new Date().toISOString(),
             badges: newBadges 
         });
 
         if (error) {
             console.error("Ошибка сохранения:", error);
-            alert("Ошибка базы данных! Откройте консоль (F12) для подробностей. Сообщение: " + error.message);
+            alert("Ошибка сохранения! Проверьте базу.");
             return;
         }
 
         if (resetTimer) sessionSeconds = 0;
         await loadMyProfile();
-        await syncData();
+        syncData(); // Обновление списков без перезагрузки страницы
     };
 
+    // --- БЫСТРЫЕ СТАТУСЫ ---
     window.setQuickStatus = async (st) => {
         if (!me) return;
-        const { error } = await supabase.from('Profile').update({ status: st, last_seen: new Date().toISOString() }).eq('id', me.id);
-        if (error) alert("Ошибка обновления статуса: " + error.message);
+        
+        // Отправляем новый статус в базу (в фоновом режиме)
+        await supabase.from('Profile').update({ 
+            status: st, 
+            last_seen: new Date().toISOString() 
+        }).eq('id', me.id);
+        
+        // Мгновенно обновляем интерфейс у себя
         syncData();
     };
 
+    // --- ЗАГРУЗКА ЛИЧНЫХ ДАННЫХ ---
     async function loadMyProfile() {
-        const { data, error } = await supabase.from('Profile').select('*').eq('id', me.id).single();
+        const { data } = await supabase.from('Profile').select('*').eq('id', me.id).single();
         if (data) {
             myProfile = data;
             const badgesArray = Array.isArray(data.badges) ? data.badges : [];
@@ -145,11 +160,13 @@
         }
     }
 
+    // --- ФУНКЦИЯ ОБНОВЛЕНИЯ ИНТЕРФЕЙСА (БЕЗ ПЕРЕЗАГРУЗКИ СТРАНИЦЫ) ---
     async function syncData() {
-        // ТОП
+        // Загрузка ТОП студентов
         const { data: profiles } = await supabase.from('Profile').select('*').order('total_time', { ascending: false });
         
         if (profiles) {
+            // Отрисовка ТОП-5
             document.getElementById('leaderboard').innerHTML = profiles.slice(0, 5).map((p, i) => `
                 <div class="list-item">
                     <div class="info">
@@ -160,8 +177,9 @@
                 </div>
             `).join('');
 
+            // Отрисовка статусов группы
             document.getElementById('group-list').innerHTML = profiles.map(p => {
-                const isOnline = onlineUsers[p.id];
+                const isOnline = onlineUsers[p.id]; // Проверка онлайна по Realtime
                 const badgesArray = Array.isArray(p.badges) ? p.badges : [];
                 const badges = badgesArray.map(b => ACHIEVEMENTS[b] || '').join('');
                 const statusText = isOnline ? (p.status || '🟢 В сети') : '⚪ Офлайн';
@@ -179,7 +197,7 @@
             }).join('');
         }
 
-        // ЧАТ
+        // Загрузка Чата
         const { data: msgs } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(15);
         if (msgs) {
             document.getElementById('chat-box').innerHTML = msgs.reverse().map(m => `
@@ -190,6 +208,7 @@
         }
     }
 
+    // Вспомогательная функция времени
     function formatTime(s) {
         if (!s) return '0с';
         const h = Math.floor(s/3600);
@@ -197,14 +216,17 @@
         return h > 0 ? `${h}ч ${m}м` : `${m}м ${s%60}с`;
     }
 
+    // --- ОТПРАВКА СООБЩЕНИЙ ---
     document.getElementById('chat-form').onsubmit = async (e) => {
         e.preventDefault();
         const input = document.getElementById('msg-input');
         if (!input.value) return;
         
+        // Отправка в базу (без перезагрузки)
         await supabase.from('messages').insert({ user_name: me.user_metadata.full_name, content: input.value });
         input.value = '';
 
+        // Проверка достижения "Активист" (10 сообщений)
         const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('user_name', me.user_metadata.full_name);
         let currentBadges = Array.isArray(myProfile.badges) ? myProfile.badges : [];
         if (count >= 10 && !currentBadges.includes('activist')) {
@@ -213,9 +235,11 @@
             alert("🎉 Достижение: Активист!");
             loadMyProfile();
         }
-        syncData();
+        
+        syncData(); // Обновляем экран
     };
 
+    // --- ИНИЦИАЛИЗАЦИЯ И REALTIME ---
     async function start() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -226,11 +250,19 @@
             
             await loadMyProfile();
             
+            // Подключение к Realtime каналу (чтобы видеть изменения от других)
             const channel = supabase.channel('main_room');
-            channel.on('presence', { event: 'sync' }, () => { onlineUsers = channel.presenceState(); syncData(); })
-                   .subscribe(async (s) => { if (s === 'SUBSCRIBED') await channel.track({ online_at: new Date().toISOString() }); });
+            channel.on('presence', { event: 'sync' }, () => { 
+                onlineUsers = channel.presenceState(); 
+                syncData(); // Обновление без перезагрузки, если кто-то зашел/вышел
+            }).subscribe(async (s) => { 
+                if (s === 'SUBSCRIBED') await channel.track({ online_at: new Date().toISOString() }); 
+            });
             
+            // Принудительное фоновое обновление каждые 3 секунды (для надежности)
             setInterval(syncData, 3000);
+            
+            // Таймер
             setInterval(() => { sessionSeconds++; document.getElementById('timer-sec').innerText = sessionSeconds; }, 1000);
         }
         syncData();
