@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Monitor Pro</title>
-    <!-- Подключаем базу данных глобально -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --bg: #0f111a; --card: #1a1d2b; --accent: #00f2ff; --gray: #8b8e9f; --online: #00ff88; }
@@ -17,28 +16,12 @@
         .btn-main { background: linear-gradient(90deg, #00f2ff, #0072ff); color: white; }
         .btn-stop { background: #ff4b5c; color: white; }
         .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-        .status-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--gray); padding: 10px; border-radius: 10px; cursor: pointer; font-size: 12px; transition: 0.2s; }
-        .status-btn:hover { background: rgba(255,255,255,0.1); }
+        .status-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--gray); padding: 10px; border-radius: 10px; cursor: pointer; font-size: 12px; }
         .list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 15px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.03); }
         .info { display: flex; align-items: center; gap: 12px; text-align: left; }
         .dot { width: 10px; height: 10px; border-radius: 50%; background: #444; }
         .dot.online { background: var(--online); box-shadow: 0 0 8px var(--online); }
         .chat-box { height: 180px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 15px; padding: 12px; text-align: left; font-size: 13px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.05);}
-        
-        .badge-tag {
-            background: rgba(0, 242, 255, 0.1);
-            border: 1px solid rgba(0, 242, 255, 0.2);
-            color: var(--accent);
-            padding: 3px 6px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: bold;
-            margin-left: 5px;
-            white-space: nowrap;
-            display: inline-block;
-        }
-        .my-badges-container { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; min-height: 25px; }
-        .my-badges-container .badge-tag { font-size: 12px; padding: 5px 10px; }
     </style>
 </head>
 <body>
@@ -47,8 +30,7 @@
     <div id="auth-ui" class="card" style="display:none;">
         <h3 id="my-name">Загрузка...</h3>
         <div class="timer" id="timer-sec">0</div>
-        
-        <div id="my-badges" class="my-badges-container"></div>
+        <div id="my-badges" style="font-size: 24px; margin-bottom: 15px; min-height: 30px;"></div>
         
         <button class="btn btn-main" onclick="updateStatus('👨‍💻 Учится')">▶ Начать / Сохранить прогресс</button>
         <button class="btn btn-stop" onclick="updateStatus('💤 Завершил', true)">■ Завершить сессию</button>
@@ -87,26 +69,23 @@
     </div>
 </div>
 
-<!-- Обычный скрипт вместо type="module" -->
-<script>
-    // Инициализация Supabase через глобальную переменную
+<script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
+
+    // Ваши ключи
     const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
     const KEY = 'sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA';
-    const db = supabase.createClient(URL, KEY);
+    const supabase = createClient(URL, KEY);
 
     let me = null;
     let myProfile = { total_time: 0, badges: [] };
     let sessionSeconds = 0;
     let onlineUsers = {};
 
-    const ACHIEVEMENTS = { 
-        early_bird: '🌅 Пташка', 
-        marathon: '🏃 Марафонец', 
-        activist: '💬 Активист' 
-    };
+    const ACHIEVEMENTS = { early_bird: '🌅', marathon: '🏃', activist: '💬' };
 
-    window.handleLogin = () => db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
-    window.handleLogout = async () => { await db.auth.signOut(); location.reload(); };
+    window.handleLogin = () => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+    window.handleLogout = async () => { await supabase.auth.signOut(); location.reload(); };
 
     window.updateStatus = async (newStatus, resetTimer = false) => {
         if (!me) return;
@@ -116,17 +95,19 @@
         let newBadges = Array.isArray(myProfile.badges) ? [...myProfile.badges] : [];
         let earned = false;
 
+        // Достижение марафонец (таймер > 10 сек)
         if (sessionSeconds >= 10 && !newBadges.includes('marathon')) {
             newBadges.push('marathon'); earned = true;
         }
         
+        // Достижение ранняя пташка (до 9:00 утра)
         if (new Date().getHours() < 9 && !newBadges.includes('early_bird')) {
             newBadges.push('early_bird'); earned = true;
         }
 
         if (earned) alert("🎉 Вы получили новое достижение!");
 
-        const { error } = await db.from('Profile').upsert({
+        const { error } = await supabase.from('Profile').upsert({
             id: me.id,
             username: me.user_metadata.full_name,
             status: newStatus,
@@ -136,6 +117,7 @@
         });
 
         if (error) {
+            console.error("Полная ошибка сохранения:", error);
             alert(`ОШИБКА БАЗЫ ДАННЫХ!\n\nКод: ${error.code}\nСообщение: ${error.message}`);
             return;
         }
@@ -147,25 +129,35 @@
 
     window.setQuickStatus = async (st) => {
         if (!me) return;
-        const { error } = await db.from('Profile').update({ status: st, last_seen: new Date().toISOString() }).eq('id', me.id);
-        if (error) alert(`Ошибка обновления статуса!\nКод: ${error.code}\nСообщение: ${error.message}`);
+        
+        const { error } = await supabase.from('Profile').update({ 
+            status: st, 
+            last_seen: new Date().toISOString() 
+        }).eq('id', me.id);
+
+        if (error) {
+            alert(`Ошибка обновления статуса!\nКод: ${error.code}\nСообщение: ${error.message}`);
+            return;
+        }
+        
         syncData();
     };
 
     async function loadMyProfile() {
-        const { data } = await db.from('Profile').select('*').eq('id', me.id).single();
+        const { data } = await supabase.from('Profile').select('*').eq('id', me.id).single();
         if (data) {
             myProfile = data;
             const badgesArray = Array.isArray(data.badges) ? data.badges : [];
-            const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] ? `<span class="badge-tag">${ACHIEVEMENTS[b]}</span>` : '').join('');
+            const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] || '').join(' ');
             document.getElementById('my-badges').innerHTML = badgesHTML || '<span style="font-size:12px;color:#666;">Пока нет значков</span>';
         }
     }
 
     async function syncData() {
-        const { data: profiles } = await db.from('Profile').select('*').order('total_time', { ascending: false });
+        const { data: profiles } = await supabase.from('Profile').select('*').order('total_time', { ascending: false });
         
         if (profiles) {
+            // Отрисовка ТОП студентов
             document.getElementById('leaderboard').innerHTML = profiles.slice(0, 5).map((p, i) => `
                 <div class="list-item">
                     <div class="info">
@@ -176,10 +168,14 @@
                 </div>
             `).join('');
 
+            // Отрисовка Статусов группы
             document.getElementById('group-list').innerHTML = profiles.map(p => {
+                // Проверяем, есть ли ID пользователя в списке тех, кто сейчас онлайн
                 const isOnline = onlineUsers.hasOwnProperty(p.id); 
                 const badgesArray = Array.isArray(p.badges) ? p.badges : [];
-                const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] ? `<span class="badge-tag">${ACHIEVEMENTS[b]}</span>` : '').join('');
+                const badges = badgesArray.map(b => ACHIEVEMENTS[b] || '').join('');
+                
+                // Если онлайн - показываем статус из базы, если нет - "Офлайн"
                 const statusText = isOnline ? (p.status || '🟢 В сети') : '⚪ Офлайн';
                 
                 return `
@@ -187,9 +183,7 @@
                     <div class="info">
                         <div class="dot ${isOnline ? 'online' : ''}"></div>
                         <div>
-                            <div style="font-size:14px; font-weight:bold; margin-bottom: 3px;">
-                                ${p.username || 'Без имени'} ${badgesHTML}
-                            </div>
+                            <div style="font-size:14px; font-weight:bold;">${p.username || 'Без имени'} <span style="margin-left:5px;">${badges}</span></div>
                             <div style="font-size:11px; color:#aaa;">${statusText}</div>
                         </div>
                     </div>
@@ -197,7 +191,8 @@
             }).join('');
         }
 
-        const { data: msgs } = await db.from('messages').select('*').order('created_at', { ascending: false }).limit(15);
+        // Отрисовка Чата
+        const { data: msgs } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(15);
         if (msgs) {
             document.getElementById('chat-box').innerHTML = msgs.reverse().map(m => `
                 <div style="margin-bottom:8px; line-height:1.3;">
@@ -219,14 +214,14 @@
         const input = document.getElementById('msg-input');
         if (!input.value) return;
         
-        await db.from('messages').insert({ user_name: me.user_metadata.full_name, content: input.value });
+        await supabase.from('messages').insert({ user_name: me.user_metadata.full_name, content: input.value });
         input.value = '';
 
-        const { count } = await db.from('messages').select('*', { count: 'exact', head: true }).eq('user_name', me.user_metadata.full_name);
+        const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('user_name', me.user_metadata.full_name);
         let currentBadges = Array.isArray(myProfile.badges) ? myProfile.badges : [];
         if (count >= 10 && !currentBadges.includes('activist')) {
             let newB = [...currentBadges, 'activist'];
-            await db.from('Profile').update({ badges: newB }).eq('id', me.id);
+            await supabase.from('Profile').update({ badges: newB }).eq('id', me.id);
             alert("🎉 Достижение: Активист!");
             loadMyProfile();
         }
@@ -235,7 +230,7 @@
     };
 
     async function start() {
-        const { data: { session } } = await db.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             me = session.user;
             document.getElementById('auth-ui').style.display = 'block';
@@ -244,8 +239,11 @@
             
             await loadMyProfile();
             
-            const channel = db.channel('main_room', { 
-                config: { presence: { key: me.id } } 
+            // ВАЖНОЕ ИСПРАВЛЕНИЕ: Передаем me.id в настройки присутствия
+            const channel = supabase.channel('main_room', { 
+                config: { 
+                    presence: { key: me.id } 
+                } 
             });
 
             channel.on('presence', { event: 'sync' }, () => { 
