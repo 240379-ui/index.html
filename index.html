@@ -16,12 +16,29 @@
         .btn-main { background: linear-gradient(90deg, #00f2ff, #0072ff); color: white; }
         .btn-stop { background: #ff4b5c; color: white; }
         .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-        .status-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--gray); padding: 10px; border-radius: 10px; cursor: pointer; font-size: 12px; }
+        .status-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--gray); padding: 10px; border-radius: 10px; cursor: pointer; font-size: 12px; transition: 0.2s; }
+        .status-btn:hover { background: rgba(255,255,255,0.1); }
         .list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 15px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.03); }
         .info { display: flex; align-items: center; gap: 12px; text-align: left; }
         .dot { width: 10px; height: 10px; border-radius: 50%; background: #444; }
         .dot.online { background: var(--online); box-shadow: 0 0 8px var(--online); }
         .chat-box { height: 180px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 15px; padding: 12px; text-align: left; font-size: 13px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.05);}
+        
+        /* СТИЛЬ ДЛЯ ЗНАЧКОВ */
+        .badge-tag {
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            color: var(--accent);
+            padding: 3px 6px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 5px;
+            white-space: nowrap;
+            display: inline-block;
+        }
+        .my-badges-container { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; min-height: 25px; }
+        .my-badges-container .badge-tag { font-size: 12px; padding: 5px 10px; }
     </style>
 </head>
 <body>
@@ -30,7 +47,9 @@
     <div id="auth-ui" class="card" style="display:none;">
         <h3 id="my-name">Загрузка...</h3>
         <div class="timer" id="timer-sec">0</div>
-        <div id="my-badges" style="font-size: 24px; margin-bottom: 15px; min-height: 30px;"></div>
+        
+        <!-- Контейнер для личных значков -->
+        <div id="my-badges" class="my-badges-container"></div>
         
         <button class="btn btn-main" onclick="updateStatus('👨‍💻 Учится')">▶ Начать / Сохранить прогресс</button>
         <button class="btn btn-stop" onclick="updateStatus('💤 Завершил', true)">■ Завершить сессию</button>
@@ -63,14 +82,14 @@
         <h3>💬 ЧАТ</h3>
         <div id="chat-box" class="chat-box"></div>
         <form id="chat-form" style="display:flex; gap:5px;">
-            <input type="text" id="msg-input" placeholder="Введите сообщение..." style="flex:1; background:#000; border:1px solid #333; border-radius:8px; color:white; padding:10px; outline:none;">
+            <input type="text" id="msg-input" placeholder="Введите сообщение..." style="flex:1; background:#000; border:1px solid #333; border-radius:8px; color:white; padding:10px; outline:none;" autocomplete="off">
             <button type="submit" class="btn btn-main" style="width:50px; margin:0; padding:0;">➤</button>
         </form>
     </div>
 </div>
 
 <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 
     // Ваши ключи
     const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
@@ -82,7 +101,12 @@
     let sessionSeconds = 0;
     let onlineUsers = {};
 
-    const ACHIEVEMENTS = { early_bird: '🌅', marathon: '🏃', activist: '💬' };
+    // ТЕПЕРЬ У ДОСТИЖЕНИЙ ЕСТЬ КРАТКИЕ ИМЕНА
+    const ACHIEVEMENTS = { 
+        early_bird: '🌅 Пташка', 
+        marathon: '🏃 Марафонец', 
+        activist: '💬 Активист' 
+    };
 
     window.handleLogin = () => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
     window.handleLogout = async () => { await supabase.auth.signOut(); location.reload(); };
@@ -105,7 +129,6 @@
 
         if (earned) alert("🎉 Вы получили новое достижение!");
 
-        // Сохраняем в базу (обратите внимание на отлов ошибки)
         const { error } = await supabase.from('Profile').upsert({
             id: me.id,
             username: me.user_metadata.full_name,
@@ -115,10 +138,9 @@
             badges: newBadges 
         });
 
-        // --- ВОТ ЭТОТ БЛОК ТЕПЕРЬ ПОКАЖЕТ ТОЧНУЮ ПРИЧИНУ ---
         if (error) {
             console.error("Полная ошибка сохранения:", error);
-            alert(`ОШИБКА БАЗЫ ДАННЫХ!\n\nКод: ${error.code}\nСообщение: ${error.message}\nПодробности: ${error.details}\n\nСделайте скриншот этого окна или напишите текст сюда.`);
+            alert(`ОШИБКА БАЗЫ ДАННЫХ!\n\nКод: ${error.code}\nСообщение: ${error.message}`);
             return;
         }
 
@@ -148,7 +170,8 @@
         if (data) {
             myProfile = data;
             const badgesArray = Array.isArray(data.badges) ? data.badges : [];
-            const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] || '').join(' ');
+            // Обертка значков в красивый тег
+            const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] ? `<span class="badge-tag">${ACHIEVEMENTS[b]}</span>` : '').join('');
             document.getElementById('my-badges').innerHTML = badgesHTML || '<span style="font-size:12px;color:#666;">Пока нет значков</span>';
         }
     }
@@ -168,9 +191,10 @@
             `).join('');
 
             document.getElementById('group-list').innerHTML = profiles.map(p => {
-                const isOnline = onlineUsers[p.id];
+                const isOnline = onlineUsers.hasOwnProperty(p.id); 
                 const badgesArray = Array.isArray(p.badges) ? p.badges : [];
-                const badges = badgesArray.map(b => ACHIEVEMENTS[b] || '').join('');
+                // Обертка значков в красивый тег для списка группы
+                const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] ? `<span class="badge-tag">${ACHIEVEMENTS[b]}</span>` : '').join('');
                 const statusText = isOnline ? (p.status || '🟢 В сети') : '⚪ Офлайн';
                 
                 return `
@@ -178,7 +202,9 @@
                     <div class="info">
                         <div class="dot ${isOnline ? 'online' : ''}"></div>
                         <div>
-                            <div style="font-size:14px; font-weight:bold;">${p.username || 'Без имени'} <span style="margin-left:5px;">${badges}</span></div>
+                            <div style="font-size:14px; font-weight:bold; margin-bottom: 3px;">
+                                ${p.username || 'Без имени'} ${badgesHTML}
+                            </div>
                             <div style="font-size:11px; color:#aaa;">${statusText}</div>
                         </div>
                     </div>
@@ -233,7 +259,12 @@
             
             await loadMyProfile();
             
-            const channel = supabase.channel('main_room');
+            const channel = supabase.channel('main_room', { 
+                config: { 
+                    presence: { key: me.id } 
+                } 
+            });
+
             channel.on('presence', { event: 'sync' }, () => { 
                 onlineUsers = channel.presenceState(); 
                 syncData(); 
