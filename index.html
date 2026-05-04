@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Monitor Pro</title>
+    <!-- Подключаем базу данных глобально -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --bg: #0f111a; --card: #1a1d2b; --accent: #00f2ff; --gray: #8b8e9f; --online: #00ff88; }
@@ -24,7 +25,6 @@
         .dot.online { background: var(--online); box-shadow: 0 0 8px var(--online); }
         .chat-box { height: 180px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 15px; padding: 12px; text-align: left; font-size: 13px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.05);}
         
-        /* СТИЛЬ ДЛЯ ЗНАЧКОВ */
         .badge-tag {
             background: rgba(0, 242, 255, 0.1);
             border: 1px solid rgba(0, 242, 255, 0.2);
@@ -48,7 +48,6 @@
         <h3 id="my-name">Загрузка...</h3>
         <div class="timer" id="timer-sec">0</div>
         
-        <!-- Контейнер для личных значков -->
         <div id="my-badges" class="my-badges-container"></div>
         
         <button class="btn btn-main" onclick="updateStatus('👨‍💻 Учится')">▶ Начать / Сохранить прогресс</button>
@@ -88,28 +87,26 @@
     </div>
 </div>
 
-<script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
-
-    // Ваши ключи
+<!-- Обычный скрипт вместо type="module" -->
+<script>
+    // Инициализация Supabase через глобальную переменную
     const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
     const KEY = 'sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA';
-    const supabase = createClient(URL, KEY);
+    const db = supabase.createClient(URL, KEY);
 
     let me = null;
     let myProfile = { total_time: 0, badges: [] };
     let sessionSeconds = 0;
     let onlineUsers = {};
 
-    // ТЕПЕРЬ У ДОСТИЖЕНИЙ ЕСТЬ КРАТКИЕ ИМЕНА
     const ACHIEVEMENTS = { 
         early_bird: '🌅 Пташка', 
         marathon: '🏃 Марафонец', 
         activist: '💬 Активист' 
     };
 
-    window.handleLogin = () => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
-    window.handleLogout = async () => { await supabase.auth.signOut(); location.reload(); };
+    window.handleLogin = () => db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+    window.handleLogout = async () => { await db.auth.signOut(); location.reload(); };
 
     window.updateStatus = async (newStatus, resetTimer = false) => {
         if (!me) return;
@@ -129,7 +126,7 @@
 
         if (earned) alert("🎉 Вы получили новое достижение!");
 
-        const { error } = await supabase.from('Profile').upsert({
+        const { error } = await db.from('Profile').upsert({
             id: me.id,
             username: me.user_metadata.full_name,
             status: newStatus,
@@ -139,7 +136,6 @@
         });
 
         if (error) {
-            console.error("Полная ошибка сохранения:", error);
             alert(`ОШИБКА БАЗЫ ДАННЫХ!\n\nКод: ${error.code}\nСообщение: ${error.message}`);
             return;
         }
@@ -151,33 +147,23 @@
 
     window.setQuickStatus = async (st) => {
         if (!me) return;
-        
-        const { error } = await supabase.from('Profile').update({ 
-            status: st, 
-            last_seen: new Date().toISOString() 
-        }).eq('id', me.id);
-
-        if (error) {
-            alert(`Ошибка обновления статуса!\nКод: ${error.code}\nСообщение: ${error.message}`);
-            return;
-        }
-        
+        const { error } = await db.from('Profile').update({ status: st, last_seen: new Date().toISOString() }).eq('id', me.id);
+        if (error) alert(`Ошибка обновления статуса!\nКод: ${error.code}\nСообщение: ${error.message}`);
         syncData();
     };
 
     async function loadMyProfile() {
-        const { data } = await supabase.from('Profile').select('*').eq('id', me.id).single();
+        const { data } = await db.from('Profile').select('*').eq('id', me.id).single();
         if (data) {
             myProfile = data;
             const badgesArray = Array.isArray(data.badges) ? data.badges : [];
-            // Обертка значков в красивый тег
             const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] ? `<span class="badge-tag">${ACHIEVEMENTS[b]}</span>` : '').join('');
             document.getElementById('my-badges').innerHTML = badgesHTML || '<span style="font-size:12px;color:#666;">Пока нет значков</span>';
         }
     }
 
     async function syncData() {
-        const { data: profiles } = await supabase.from('Profile').select('*').order('total_time', { ascending: false });
+        const { data: profiles } = await db.from('Profile').select('*').order('total_time', { ascending: false });
         
         if (profiles) {
             document.getElementById('leaderboard').innerHTML = profiles.slice(0, 5).map((p, i) => `
@@ -193,7 +179,6 @@
             document.getElementById('group-list').innerHTML = profiles.map(p => {
                 const isOnline = onlineUsers.hasOwnProperty(p.id); 
                 const badgesArray = Array.isArray(p.badges) ? p.badges : [];
-                // Обертка значков в красивый тег для списка группы
                 const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] ? `<span class="badge-tag">${ACHIEVEMENTS[b]}</span>` : '').join('');
                 const statusText = isOnline ? (p.status || '🟢 В сети') : '⚪ Офлайн';
                 
@@ -212,7 +197,7 @@
             }).join('');
         }
 
-        const { data: msgs } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(15);
+        const { data: msgs } = await db.from('messages').select('*').order('created_at', { ascending: false }).limit(15);
         if (msgs) {
             document.getElementById('chat-box').innerHTML = msgs.reverse().map(m => `
                 <div style="margin-bottom:8px; line-height:1.3;">
@@ -234,14 +219,14 @@
         const input = document.getElementById('msg-input');
         if (!input.value) return;
         
-        await supabase.from('messages').insert({ user_name: me.user_metadata.full_name, content: input.value });
+        await db.from('messages').insert({ user_name: me.user_metadata.full_name, content: input.value });
         input.value = '';
 
-        const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('user_name', me.user_metadata.full_name);
+        const { count } = await db.from('messages').select('*', { count: 'exact', head: true }).eq('user_name', me.user_metadata.full_name);
         let currentBadges = Array.isArray(myProfile.badges) ? myProfile.badges : [];
         if (count >= 10 && !currentBadges.includes('activist')) {
             let newB = [...currentBadges, 'activist'];
-            await supabase.from('Profile').update({ badges: newB }).eq('id', me.id);
+            await db.from('Profile').update({ badges: newB }).eq('id', me.id);
             alert("🎉 Достижение: Активист!");
             loadMyProfile();
         }
@@ -250,7 +235,7 @@
     };
 
     async function start() {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await db.auth.getSession();
         if (session) {
             me = session.user;
             document.getElementById('auth-ui').style.display = 'block';
@@ -259,10 +244,8 @@
             
             await loadMyProfile();
             
-            const channel = supabase.channel('main_room', { 
-                config: { 
-                    presence: { key: me.id } 
-                } 
+            const channel = db.channel('main_room', { 
+                config: { presence: { key: me.id } } 
             });
 
             channel.on('presence', { event: 'sync' }, () => { 
