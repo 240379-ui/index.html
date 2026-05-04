@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Monitor Pro</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --bg: #0f111a; --card: #1a1d2b; --accent: #00f2ff; --gray: #8b8e9f; --online: #00ff88; }
         body { background: var(--bg); font-family: 'Segoe UI', sans-serif; color: white; display: flex; justify-content: center; padding: 20px; margin: 0; }
@@ -44,11 +43,12 @@
 <body>
 
 <div class="container">
+    <!-- ЛИЧНЫЙ КАБИНЕТ -->
     <div id="auth-ui" class="card" style="display:none;">
         <h3 id="my-name">Загрузка...</h3>
         <div class="timer" id="timer-sec">0</div>
         
-        <!-- Контейнер для личных значков -->
+        <!-- Ваши достижения -->
         <div id="my-badges" class="my-badges-container"></div>
         
         <button class="btn btn-main" onclick="updateStatus('👨‍💻 Учится')">▶ Начать / Сохранить прогресс</button>
@@ -63,21 +63,25 @@
         <button class="btn" style="background:transparent; color:#888; border:1px solid #333; margin-top:15px;" onclick="handleLogout()">Выйти из аккаунта</button>
     </div>
 
+    <!-- ОКНО ВХОДА -->
     <div id="login-ui" class="card">
         <h3>Вход в систему</h3>
         <button class="btn btn-main" onclick="handleLogin()">Войти через Google</button>
     </div>
 
+    <!-- РЕЙТИНГ -->
     <div class="card">
         <h3>🏆 ТОП СТУДЕНТОВ</h3>
         <div id="leaderboard">Загрузка...</div>
     </div>
 
+    <!-- СТАТУСЫ ГРУППЫ -->
     <div class="card">
         <h3>👥 СТАТУСЫ ГРУППЫ</h3>
         <div id="group-list">Загрузка...</div>
     </div>
 
+    <!-- ЧАТ -->
     <div class="card">
         <h3>💬 ЧАТ</h3>
         <div id="chat-box" class="chat-box"></div>
@@ -89,9 +93,10 @@
 </div>
 
 <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
+    // ВАЖНО: Добавлено /+esm в конце ссылки!
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 
-    // Ваши ключи
+    // Ваши ключи базы данных
     const URL = 'https://yhlulkexiyalevwcuqka.supabase.co';
     const KEY = 'sb_publishable_XsWypF_waLnQZGFW6oBDcw_7vOgoLHA';
     const supabase = createClient(URL, KEY);
@@ -101,7 +106,7 @@
     let sessionSeconds = 0;
     let onlineUsers = {};
 
-    // ТЕПЕРЬ У ДОСТИЖЕНИЙ ЕСТЬ КРАТКИЕ ИМЕНА
+    // Названия достижений
     const ACHIEVEMENTS = { 
         early_bird: '🌅 Пташка', 
         marathon: '🏃 Марафонец', 
@@ -111,6 +116,7 @@
     window.handleLogin = () => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
     window.handleLogout = async () => { await supabase.auth.signOut(); location.reload(); };
 
+    // Сохранение времени и проверка достижений
     window.updateStatus = async (newStatus, resetTimer = false) => {
         if (!me) return;
         
@@ -149,6 +155,7 @@
         syncData();
     };
 
+    // Быстрые статусы
     window.setQuickStatus = async (st) => {
         if (!me) return;
         
@@ -165,21 +172,23 @@
         syncData();
     };
 
+    // Загрузка личного профиля
     async function loadMyProfile() {
         const { data } = await supabase.from('Profile').select('*').eq('id', me.id).single();
         if (data) {
             myProfile = data;
             const badgesArray = Array.isArray(data.badges) ? data.badges : [];
-            // Обертка значков в красивый тег
             const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] ? `<span class="badge-tag">${ACHIEVEMENTS[b]}</span>` : '').join('');
             document.getElementById('my-badges').innerHTML = badgesHTML || '<span style="font-size:12px;color:#666;">Пока нет значков</span>';
         }
     }
 
+    // Обновление интерфейса (Рейтинг, Статусы, Чат)
     async function syncData() {
         const { data: profiles } = await supabase.from('Profile').select('*').order('total_time', { ascending: false });
         
         if (profiles) {
+            // ТОП студентов
             document.getElementById('leaderboard').innerHTML = profiles.slice(0, 5).map((p, i) => `
                 <div class="list-item">
                     <div class="info">
@@ -190,10 +199,10 @@
                 </div>
             `).join('');
 
+            // Статусы группы
             document.getElementById('group-list').innerHTML = profiles.map(p => {
                 const isOnline = onlineUsers.hasOwnProperty(p.id); 
                 const badgesArray = Array.isArray(p.badges) ? p.badges : [];
-                // Обертка значков в красивый тег для списка группы
                 const badgesHTML = badgesArray.map(b => ACHIEVEMENTS[b] ? `<span class="badge-tag">${ACHIEVEMENTS[b]}</span>` : '').join('');
                 const statusText = isOnline ? (p.status || '🟢 В сети') : '⚪ Офлайн';
                 
@@ -212,6 +221,7 @@
             }).join('');
         }
 
+        // Чат
         const { data: msgs } = await supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(15);
         if (msgs) {
             document.getElementById('chat-box').innerHTML = msgs.reverse().map(m => `
@@ -229,6 +239,7 @@
         return h > 0 ? `${h}ч ${m}м` : `${m}м ${s%60}с`;
     }
 
+    // Отправка сообщений
     document.getElementById('chat-form').onsubmit = async (e) => {
         e.preventDefault();
         const input = document.getElementById('msg-input');
@@ -249,6 +260,7 @@
         syncData();
     };
 
+    // Старт приложения
     async function start() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -259,6 +271,7 @@
             
             await loadMyProfile();
             
+            // Настройка Realtime для отслеживания онлайна
             const channel = supabase.channel('main_room', { 
                 config: { 
                     presence: { key: me.id } 
